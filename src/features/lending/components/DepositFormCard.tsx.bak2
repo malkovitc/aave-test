@@ -1,0 +1,266 @@
+import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Label } from '@/shared/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { useDepositFlow } from '../hooks/use-deposit-flow';
+import { useTokenForm } from '../hooks/use-token-form';
+import { useWallet } from '@/features/wallet/hooks/use-wallet';
+import { useDepositContext } from '../context/DepositContext';
+import { Loader2 } from 'lucide-react';
+import { TokenIcon } from '@/shared/components/TokenIcon';
+import { Skeleton } from '@/shared/ui/skeleton';
+import type { TokenConfig } from '@/features/tokens/config/tokens';
+import type { DiscoveredToken } from '@/features/tokens/hooks/use-user-tokens';
+
+interface DepositFormCardProps {
+	selectedTokenSymbol?: string | null;
+	onTokenChange?: (symbol: string) => void;
+}
+
+/**
+ * Filter tokens to only those with non-zero balance
+ * Used for deposit form to show only tokens user can deposit
+ */
+function filterTokensWithBalance(tokens: TokenConfig[]): DiscoveredToken[] {
+	return tokens.filter((token): token is DiscoveredToken => {
+		return 'balance' in token && (token as DiscoveredToken).balance > 0n;
+	});
+}
+
+/**
+ * Get formatted balance from token if it's a DiscoveredToken
+ * Returns '0' for tokens without balance information
+ */
+function getTokenBalanceFormatted(token: TokenConfig | null): string {
+	if (!token) return '0';
+	if ('balanceFormatted' in token) {
+		return (token as DiscoveredToken).balanceFormatted;
+	}
+	return '0';
+}
+
+function getActionLabel({
+	needsApproval,
+	isApproving,
+	isDepositing,
+}: {
+	needsApproval: boolean;
+	isApproving: boolean;
+	isDepositing: boolean;
+}) {
+	if (isApproving) return 'Approving...';
+	if (isDepositing) return 'Depositing...';
+	if (needsApproval) return 'Approve';
+	return 'Deposit';
+}
+
+/**
+ * DepositFormCard component
+ *
+ * Persistent deposit form displayed as a Card (not Dialog) on the main page.
+ * Matches Figma design with token selector and amount input.
+ *
+ * Features:
+ * - Token selection dropdown
+ * - Amount input with decimal sanitization
+ * - Max button to fill available balance
+ * - Approval + Deposit flow (with supplyWithPermit for supported tokens)
+ * - Automatic token pre-selection when triggered from TokenBalanceCard
+ *
+ * Design Specs from Figma:
+ * - Card with CardHeader + CardContent
+ * - Title: "Deposit"
+ * - Description: "Deposit your tokens into Aave to start earning interest"
+ * - Button label: "Approve" or "Deposit"
+ */
+export const DepositFormCard = forwardRef<HTMLDivElement, DepositFormCardProps>(
+	({ selectedTokenSymbol, onTokenChange }, ref) => {
+		const { isConnected, isWrongNetwork, switchToSupportedNetwork } = useWallet();
+		const { depositInputRef } = useDepositContext();
+
+		// Use shared form logic - filter to only tokens with balance
+		const {
+			tokens,
+			isLoadingTokens,
+			selectedToken,
+			setSelectedToken,
+			safeToken,
+			localAmount,
+			debouncedAmount,
+			handleAmountChange,
+			handleMaxClick: handleMaxClickForm,
+			clearAmount,
+		} = useTokenForm(selectedTokenSymbol, filterTokensWithBalance);
+
+		// Get formatted balance for the selected token
+		const balanceFormatted = getTokenBalanceFormatted(selectedToken);
+
+		const {
+			setAmount,
+			needsApproval,
+			isValidAmount,
+			handleApprove,
+			handleDeposit,
+			isApproving,
+			isDepositing,
+			isLoading,
+			isDepositSuccess,
+		} = useDepositFlow(safeToken, balanceFormatted);
+
+		// Sync debounced amount to depositFlow (only after user stops typing)
+		useEffect(() => {
+			setAmount(debouncedAmount);
+		}, [debouncedAmount, setAmount]);
+
+		// Reset local amount after successful deposit
+		useEffect(() => {
+			if (isDepositSuccess) {
+				clearAmount();
+			}
+		}, [isDepositSuccess, clearAmount]);
+
+		const handleMaxClick = () => {
+			handleMaxClickForm(balanceFormatted, setAmount);
+		};
+
+		// Stabilize button label to prevent flickering during input
+		// needsApproval updates after debounce, but React re-renders on every localAmount change
+		// This memo keeps the label stable while user is typing
+		const buttonLabel = useMemo(() => {
+			if (localAmount !== debouncedAmount && localAmount !== '') {
+				// User is still typing - keep current label stable
+				return needsApproval ? 'Approve' : 'Deposit';
+			}
+			// Debounce completed - update label based on latest state
+			return getActionLabel({ needsApproval, isApproving, isDepositing });
+		}, [localAmount, debouncedAmount, needsApproval, isApproving, isDepositing]);
+
+		const handlePrimaryAction = async () => {
+			if (!isConnected) {
+				return;
+			}
+
+			if (isWrongNetwork) {
+				switchToSupportedNetwork();
+				return;
+			}
+
+			if (needsApproval) {
+				await handleApprove();
+			} else {
+				await handleDeposit();
+			}
+		};
+
+		return (
+			<Card ref={ref}>
+				<CardHeader>
+					<CardTitle>Deposit</CardTitle>
+					<CardDescription>Deposit your tokens into Aave to start earning interest</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="space-y-2">
+						<Label htmlFor="deposit-token">Token</Label>
+						<Select
+							value={selectedToken?.symbol || ''}
+							onValueChange={(symbol) => {
+								const token = tokens.find((t) => t.symbol === symbol);
+								if (token) {
+									setSelectedToken(token);
+									// Notify parent (App.tsx) about token change for key update
+									onTokenChange?.(symbol);
+								}
+							}}
+							disabled={!isConnected || isLoadingTokens}
+						>
+							<SelectTrigger id="deposit-token">
+								{isLoadingTokens ? <Skeleton className="h-5 w-32" /> : <SelectValue placeholder="Select token" />}
+							</SelectTrigger>
+							<SelectContent>
+								{tokens.map((token) => (
+									<SelectItem key={token.symbol} value={token.symbol}>
+										<div className="flex items-center gap-2">
+											<TokenIcon symbol={token.symbol} size={20} />
+											<span>{token.symbol}</span>
+											{'balance' in token && (token as DiscoveredToken).balance > 0n && (
+												<span className="hidden md:inline text-xs text-muted-foreground ml-auto">
+													{(token as DiscoveredToken).balanceFormatted}
+												</span>
+											)}
+										</div>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						{tokens.length === 0 && !isLoadingTokens && isConnected && (
+							<p className="text-sm text-muted-foreground">No tokens with balance in your wallet</p>
+						)}
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="deposit-amount">Amount</Label>
+						<div className="flex gap-2">
+							<Input
+								ref={depositInputRef}
+								id="deposit-amount"
+								type="text"
+								placeholder="0.00"
+								inputMode="decimal"
+								value={localAmount}
+								onChange={(e) => handleAmountChange(e.target.value)}
+								disabled={!isConnected || isLoading || isWrongNetwork || !selectedToken}
+								aria-invalid={localAmount !== '' && localAmount === debouncedAmount && !isValidAmount}
+								aria-describedby={
+									localAmount !== '' && localAmount === debouncedAmount && !isValidAmount
+										? 'deposit-amount-error'
+										: undefined
+								}
+							/>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handleMaxClick}
+								disabled={!isConnected || isLoading || isWrongNetwork || !selectedToken}
+							>
+								Max
+							</Button>
+						</div>
+						<div className="min-h-5">
+							{localAmount !== '' && localAmount === debouncedAmount && !isValidAmount && (
+								<p id="deposit-amount-error" role="alert" className="text-sm text-destructive">
+									Invalid amount or insufficient balance
+								</p>
+							)}
+						</div>
+						<p className="text-sm text-muted-foreground">
+							Available: {balanceFormatted} {safeToken.symbol || ''}
+						</p>
+					</div>
+
+					{isWrongNetwork && (
+						<p className="text-sm text-destructive">Please switch to the supported network before depositing.</p>
+					)}
+
+					{isWrongNetwork ? (
+						<Button onClick={handlePrimaryAction} className="w-full" variant="destructive">
+							Switch to supported network
+						</Button>
+					) : (
+						<Button
+							onClick={handlePrimaryAction}
+							disabled={!isConnected || !isValidAmount || isLoading}
+							className="w-full"
+						>
+							{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{buttonLabel}
+						</Button>
+					)}
+				</CardContent>
+			</Card>
+		);
+	}
+);
+
+DepositFormCard.displayName = 'DepositFormCard';

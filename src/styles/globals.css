@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		/* Aave Lite Design System - Color Tokens (HSL for Tailwind) */
+		--bg: 214 32% 97%; /* #F7F8FA */
+		--card: 0 0% 100%; /* #FFFFFF */
+		--text: 214 56% 8%; /* #0B1220 */
+		--subtext: 218 15% 42%; /* #5B667A */
+		--primary: 221 83% 56%; /* #2F6FED */
+		--primary-weak: 221 100% 95%; /* #E7EEFF */
+		--success: 152 60% 47%; /* #2FBF71 */
+		--warning: 37 100% 56%; /* #FFB020 */
+		--danger: 358 77% 59%; /* #E5484D */
+		--border: 214 32% 91%; /* #E6E9EE */
+		--input: 214 32% 96%; /* #F3F5F8 */
+
+		/* Spacing Tokens */
+		--radius: 0.75rem; /* 12px - for rounded-xl */
+
+		/* Tailwind compatibility mappings */
+		--background: var(--bg);
+		--foreground: var(--text);
+		--card-foreground: var(--text);
+		--popover: var(--card);
+		--popover-foreground: var(--text);
+		--primary-foreground: 0 0% 100%;
+		--secondary: var(--input);
+		--secondary-foreground: var(--text);
+		--muted: var(--input);
+		--muted-foreground: var(--subtext);
+		--accent: var(--primary-weak);
+		--accent-foreground: var(--primary);
+		--destructive: var(--danger);
+		--destructive-foreground: 0 0% 100%;
+		--input-background: var(--input);
+		--ring: var(--primary);
+
+		/* Chart colors */
+		--chart-1: oklch(0.646 0.222 41.116);
+		--chart-2: oklch(0.6 0.118 184.704);
+		--chart-3: oklch(0.398 0.07 227.392);
+		--chart-4: oklch(0.828 0.189 84.429);
+		--chart-5: oklch(0.769 0.188 70.08);
+	}
+
+	.dark {
+		--background: oklch(0.145 0 0);
+		--foreground: oklch(0.985 0 0);
+		--card: oklch(0.145 0 0);
+		--card-foreground: oklch(0.985 0 0);
+		--popover: oklch(0.145 0 0);
+		--popover-foreground: oklch(0.985 0 0);
+		--primary: oklch(0.985 0 0);
+		--primary-foreground: oklch(0.205 0 0);
+		--secondary: oklch(0.269 0 0);
+		--secondary-foreground: oklch(0.985 0 0);
+		--muted: oklch(0.269 0 0);
+		--muted-foreground: oklch(0.708 0 0);
+		--accent: oklch(0.269 0 0);
+		--accent-foreground: oklch(0.985 0 0);
+		--destructive: oklch(0.396 0.141 25.723);
+		--destructive-foreground: oklch(0.637 0.237 25.331);
+		--border: oklch(0.269 0 0);
+		--input: oklch(0.269 0 0);
+		--ring: oklch(0.439 0 0);
+		--chart-1: oklch(0.488 0.243 264.376);
+		--chart-2: oklch(0.696 0.17 162.48);
+		--chart-3: oklch(0.769 0.188 70.08);
+		--chart-4: oklch(0.627 0.265 303.9);
+		--chart-5: oklch(0.645 0.246 16.439);
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+		font-feature-settings:
+			'rlig' 1,
+			'calt' 1;
+	}
+}
+
+/**
+ * Typography - Base styles for headings, paragraphs, labels, etc.
+ */
+@layer base {
+	h1 {
+		@apply text-2xl font-medium;
+	}
+
+	h2 {
+		@apply text-base font-normal;
+	}
+
+	h3 {
+		@apply text-lg font-medium;
+	}
+
+	h4 {
+		@apply text-base font-medium;
+	}
+
+	p {
+		@apply text-base font-normal;
+	}
+
+	label {
+		@apply text-base font-medium;
+	}
+
+	button {
+		@apply text-base font-medium;
+	}
+
+	input {
+		@apply text-base font-normal;
+	}
+}
+
+/**
+ * Token Icon utilities - Custom gradients and backgrounds
+ */
+@layer utilities {
+	/* WETH gradient background */
+	.gradient-weth {
+		background: linear-gradient(135deg, #627eea 0%, #8a9fe8 100%);
+	}
+
+	/* Fallback token background */
+	.bg-fallback-token {
+		background-color: #2775ca;
+	}
+}
