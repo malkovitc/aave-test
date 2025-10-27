@@ -76,6 +76,9 @@ export function useSupplyWithPermit(token: TokenConfig) {
 	// Track signing state separately (before transaction is sent)
 	const [isSigning, setIsSigning] = useState(false);
 
+	// Create unique toast ID for this token to prevent cross-token toast interference
+	const toastId = `supply-permit-${token.symbol}`;
+
 	const supplyWithPermit = async (amount: string) => {
 		// Early returns for validation
 		if (!userAddress || !chainId) {
@@ -106,12 +109,12 @@ export function useSupplyWithPermit(token: TokenConfig) {
 
 			// Request signature from user
 			setIsSigning(true);
-			toast.loading('Please sign the permit message...', { id: 'supply-permit' });
+			toast.loading('Please sign the permit message...', { id: toastId });
 			const signature = await signPermit(permitData, userAddress, poolAddress, amountBigInt);
 			setIsSigning(false);
 
 			// Execute transaction
-			toast.loading('Please confirm transaction in wallet...', { id: 'supply-permit' });
+			toast.loading('Please confirm transaction in wallet...', { id: toastId });
 			executeSupplyWithPermit(poolAddress, token.address, amountBigInt, userAddress, permitData.deadline, signature);
 		} catch (err: unknown) {
 			console.error('🔴 SupplyWithPermit error:', err);
@@ -119,7 +122,7 @@ export function useSupplyWithPermit(token: TokenConfig) {
 
 			// Show appropriate error message
 			const errorMessage = isUserRejection(err) ? 'Signature cancelled' : 'Failed to deposit with permit';
-			toast.error(errorMessage, { id: 'supply-permit' });
+			toast.error(errorMessage, { id: toastId });
 		}
 	};
 
@@ -129,12 +132,12 @@ export function useSupplyWithPermit(token: TokenConfig) {
 
 		// Show confirming toast when transaction is being mined
 		if (isConfirming && !isSuccess) {
-			toast.loading('Confirming transaction...', { id: 'supply-permit' });
+			toast.loading('Confirming transaction...', { id: toastId });
 		}
 
 		// Handle success
 		if (isSuccess && receiptStatus === 'success') {
-			toast.success(`Deposited ${token.symbol} successfully!`, { id: 'supply-permit' });
+			toast.success(`Deposited ${token.symbol} successfully!`, { id: toastId });
 			return;
 		}
 
@@ -149,7 +152,7 @@ export function useSupplyWithPermit(token: TokenConfig) {
 			});
 
 			const errorMessage = getSupplyErrorMessage(txError, receiptStatus, manualReceiptError, chain, token.symbol);
-			toast.error(errorMessage, { id: 'supply-permit' });
+			toast.error(errorMessage, { id: toastId });
 		}
 	}, [
 		hash,
@@ -163,6 +166,7 @@ export function useSupplyWithPermit(token: TokenConfig) {
 		manualReceiptError,
 		txError,
 		chain,
+		toastId,
 	]);
 
 	return {

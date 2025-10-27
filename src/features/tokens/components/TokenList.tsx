@@ -21,7 +21,7 @@ export function TokenList() {
 	return (
 		<div>
 			<div className="mb-4">
-				<h2 className="mb-1">Your tokens (available to deposit)</h2>
+				<h2 className="text-xl font-medium text-foreground mb-1 leading-normal">Your tokens (available to deposit)</h2>
 			</div>
 
 			{isLoading ? (

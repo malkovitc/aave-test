@@ -14,6 +14,7 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 	const [amount, setAmount] = useState('');
 	const { setIsDepositing } = useDepositContext();
 	const hasTriggeredAutoDeposit = useRef(false);
+	const previousTokenSymbol = useRef(token.symbol);
 
 	const { allowances, poolAddress, refetch: refetchAllowances, isLoading: isAllowancesLoading } = useTokenAllowances();
 	const { refetch: refetchBalances } = useTokenBalances();
@@ -119,6 +120,15 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 		refetchATokens,
 		refetchUserTokens,
 	]);
+
+	// Reset amount when token changes (user switched from failed token to new token)
+	useEffect(() => {
+		if (previousTokenSymbol.current !== token.symbol) {
+			previousTokenSymbol.current = token.symbol;
+			setAmount('');
+			hasTriggeredAutoDeposit.current = false;
+		}
+	}, [token.symbol]);
 
 	// Sync deposit/approve pending state to context to disable all deposit buttons
 	useEffect(() => {

@@ -1,18 +1,21 @@
 import { useEffect } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 import { parseUnits, Address, maxUint256 } from 'viem';
 import { toast } from 'sonner';
 import { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
 import aavePoolAbi from '../abis/AavePool.json';
+import { useTransactionMonitor } from './use-transaction-monitor';
 
 export function useWithdraw(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
 	const { writeContract, data: hash, isPending, error } = useWriteContract();
 
-	const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-		hash,
-	});
+	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
+		useTransactionMonitor(hash);
+
+	// Create unique toast ID for this token to prevent cross-token toast interference
+	const toastId = `withdraw-${token.symbol}`;
 
 	const withdraw = async (amount: string, isMax: boolean = false) => {
 		if (!userAddress || !chainId) {
@@ -40,36 +43,63 @@ export function useWithdraw(token: TokenConfig) {
 				args: [token.address, amountBigInt, userAddress],
 			});
 
-			toast.loading('Please confirm transaction in wallet...', { id: 'withdraw' });
+			toast.loading('Please confirm transaction in wallet...', { id: toastId });
 		} catch (err) {
 			console.error('Withdraw error:', err);
-			toast.error('Failed to withdraw', { id: 'withdraw' });
+			toast.error('Failed to withdraw', { id: toastId });
 		}
 	};
 
 	useEffect(() => {
-		// Don't show toasts if there's no transaction hash
+		// Early return if no transaction hash
 		if (!hash) return;
 
 		// Show confirming toast when transaction is being mined
 		if (isConfirming && !isSuccess) {
-			toast.loading('Confirming transaction...', { id: 'withdraw' });
+			toast.loading('Confirming transaction...', { id: toastId });
 		}
 
-		if (isSuccess) {
-			toast.success(`Withdrawn ${token.symbol} successfully!`, { id: 'withdraw' });
+		// Handle success
+		if (isSuccess && receiptStatus === 'success') {
+			toast.success(`Withdrawn ${token.symbol} successfully!`, { id: toastId });
+			return;
 		}
 
-		if (error) {
-			toast.error('Withdraw failed', { id: 'withdraw' });
+		// Handle failure
+		const hasFailed = txError || receiptStatus === 'error';
+		if (hasFailed && !isSuccess) {
+			console.error('❌ Withdraw FAILED:', {
+				error: txError,
+				receiptStatus,
+				isSuccess,
+				manualReceiptError,
+			});
+
+			const errorMessage = 'Transaction failed. Check block explorer for details.';
+			toast.error(errorMessage, { id: toastId });
 		}
-	}, [hash, isConfirming, isSuccess, error, token.symbol]);
+	}, [
+		hash,
+		isPending,
+		isConfirming,
+		isSuccess,
+		error,
+		receiptError,
+		receiptStatus,
+		token.symbol,
+		manualReceiptError,
+		txError,
+		toastId,
+	]);
 
 	return {
 		withdraw,
 		hash,
 		isPending: isPending || isConfirming,
 		isSuccess,
-		error,
+		error: txError,
+		receiptError,
+		receiptStatus,
+		manualReceiptError,
 	};
 }

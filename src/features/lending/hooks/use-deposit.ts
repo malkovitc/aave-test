@@ -14,6 +14,9 @@ export function useDeposit(token: TokenConfig) {
 		hash,
 	});
 
+	// Create unique toast ID for this token to prevent cross-token toast interference
+	const toastId = `deposit-${token.symbol}`;
+
 	const deposit = async (amount: string) => {
 		if (!userAddress || !chainId) {
 			console.error('🔴 No wallet connected');
@@ -46,10 +49,10 @@ export function useDeposit(token: TokenConfig) {
 				gas: 500000n, // Explicit gas limit to avoid estimation issues
 			});
 
-			toast.loading('Please confirm transaction in wallet...', { id: 'deposit' });
+			toast.loading('Please confirm transaction in wallet...', { id: toastId });
 		} catch (err) {
 			console.error('Deposit error:', err);
-			toast.error('Failed to deposit', { id: 'deposit' });
+			toast.error('Failed to deposit', { id: toastId });
 		}
 	};
 
@@ -59,20 +62,20 @@ export function useDeposit(token: TokenConfig) {
 
 		// Show confirming toast when transaction is being mined
 		if (isConfirming && !isSuccess) {
-			toast.loading('Confirming transaction...', { id: 'deposit' });
+			toast.loading('Confirming transaction...', { id: toastId });
 		}
 
 		// Handle success
 		if (isSuccess) {
-			toast.success(`Deposited ${token.symbol} successfully!`, { id: 'deposit' });
+			toast.success(`Deposited ${token.symbol} successfully!`, { id: toastId });
 		}
 
 		// Handle error
 		if (error) {
 			console.error('❌ Deposit FAILED:', error);
-			toast.error('Deposit failed', { id: 'deposit' });
+			toast.error('Deposit failed', { id: toastId });
 		}
-	}, [hash, isPending, isConfirming, isSuccess, error, token.symbol]);
+	}, [hash, isPending, isConfirming, isSuccess, error, token.symbol, toastId]);
 
 	return {
 		deposit,

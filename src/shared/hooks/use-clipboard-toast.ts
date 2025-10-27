@@ -55,8 +55,8 @@ async function copyToClipboard(value: string): Promise<void> {
 		try {
 			await navigator.clipboard.writeText(value);
 			return;
-		} catch (error) {
-			console.warn('Clipboard API failed, trying fallback:', error);
+		} catch {
+			// Silently fall through to fallback method
 		}
 	}
 

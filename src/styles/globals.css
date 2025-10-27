@@ -95,7 +95,7 @@
 	}
 
 	h2 {
-		@apply text-base font-normal;
+		@apply text-xl font-medium;
 	}
 
 	h3 {
