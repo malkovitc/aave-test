@@ -33,6 +33,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_CHAIN_ID: 11155111
+          VITE_RPC_URL: https://1rpc.io/sepolia
+          VITE_WALLETCONNECT_PROJECT_ID: c1fe267bcb3ca2b6c9f6cc7ad91d500c
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
