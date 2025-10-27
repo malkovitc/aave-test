@@ -49,11 +49,6 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 		[onWithdraw]
 	);
 
-	// Show skeleton during loading OR when not connected (prevents flash during reconnection)
-	if (isLoading || !isConnected) {
-		return <PositionsTableSkeleton />;
-	}
-
 	return (
 		<Card>
 			<CardHeader>
@@ -61,32 +56,52 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 				<CardDescription>View your deposited assets and interest-bearing aTokens</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<div className="overflow-x-auto">
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead>Asset</TableHead>
-								<TableHead className="hidden md:table-cell">aToken Address</TableHead>
-								<TableHead className="text-right">Balance</TableHead>
-								<TableHead className="text-right">Action</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{positions.length === 0 ? (
+				{/* Show skeleton during loading */}
+				{isLoading ? (
+					<div className="overflow-x-auto">
+						<PositionsTableSkeleton />
+					</div>
+				) : (
+					<div className="overflow-x-auto">
+						<Table>
+							<TableHeader>
 								<TableRow>
-									<TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-										No positions yet. Deposit tokens to start earning interest.
-									</TableCell>
+									<TableHead>Asset</TableHead>
+									<TableHead className="hidden md:table-cell">aToken Address</TableHead>
+									<TableHead className="text-right">Balance</TableHead>
+									<TableHead className="text-right">Action</TableHead>
 								</TableRow>
-							) : (
-								positions.map(({ token, aTokenAddress, formatted, raw }) => (
-									<TableRow key={token.symbol}>
-										<TableCell>
-											<div>
-												<span className="font-medium text-foreground">a{token.symbol}</span>
-												{/* Mobile: show address below */}
-												<div className="md:hidden flex items-center gap-1 mt-1">
-													<span className="text-xs text-muted-foreground">{formatAddress(aTokenAddress)}</span>
+							</TableHeader>
+							<TableBody>
+								{positions.length === 0 ? (
+									<TableRow>
+										<TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+											No positions yet. Deposit tokens to start earning interest.
+										</TableCell>
+									</TableRow>
+								) : (
+									positions.map(({ token, aTokenAddress, formatted, raw }) => (
+										<TableRow key={token.symbol}>
+											<TableCell>
+												<div>
+													<span className="font-medium text-foreground">a{token.symbol}</span>
+													{/* Mobile: show address below */}
+													<div className="md:hidden flex items-center gap-1 mt-1">
+														<span className="text-xs text-muted-foreground">{formatAddress(aTokenAddress)}</span>
+														<button
+															type="button"
+															onClick={() => copyAddress(aTokenAddress)}
+															className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
+															aria-label="Copy aToken address"
+														>
+															<Copy className="w-3 h-3" aria-hidden="true" />
+														</button>
+													</div>
+												</div>
+											</TableCell>
+											<TableCell className="hidden md:table-cell">
+												<div className="flex items-center gap-2">
+													<span className="text-muted-foreground">{formatAddress(aTokenAddress)}</span>
 													<button
 														type="button"
 														onClick={() => copyAddress(aTokenAddress)}
@@ -96,42 +111,29 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 														<Copy className="w-3 h-3" aria-hidden="true" />
 													</button>
 												</div>
-											</div>
-										</TableCell>
-										<TableCell className="hidden md:table-cell">
-											<div className="flex items-center gap-2">
-												<span className="text-muted-foreground">{formatAddress(aTokenAddress)}</span>
-												<button
+											</TableCell>
+											<TableCell className="text-right">
+												<span className="text-foreground">{formatted}</span>
+											</TableCell>
+											<TableCell className="text-right">
+												<Button
 													type="button"
-													onClick={() => copyAddress(aTokenAddress)}
-													className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
-													aria-label="Copy aToken address"
+													size="sm"
+													variant="outline"
+													onClick={() => handleWithdrawClick(token)}
+													disabled={raw === 0n}
+													aria-label={`Withdraw ${token.symbol}`}
 												>
-													<Copy className="w-3 h-3" aria-hidden="true" />
-												</button>
-											</div>
-										</TableCell>
-										<TableCell className="text-right">
-											<span className="text-foreground">{formatted}</span>
-										</TableCell>
-										<TableCell className="text-right">
-											<Button
-												type="button"
-												size="sm"
-												variant="outline"
-												onClick={() => handleWithdrawClick(token)}
-												disabled={raw === 0n}
-												aria-label={`Withdraw ${token.symbol}`}
-											>
-												Withdraw
-											</Button>
-										</TableCell>
-									</TableRow>
-								))
-							)}
-						</TableBody>
-					</Table>
-				</div>
+													Withdraw
+												</Button>
+											</TableCell>
+										</TableRow>
+									))
+								)}
+							</TableBody>
+						</Table>
+					</div>
+				)}
 			</CardContent>
 		</Card>
 	);

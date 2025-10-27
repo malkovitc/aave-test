@@ -126,7 +126,7 @@ describe('useWithdrawFlow', () => {
 				await result.current.handleWithdraw();
 			});
 
-			expect(mockWithdraw).toHaveBeenCalledWith('50');
+			expect(mockWithdraw).toHaveBeenCalledWith('50', false);
 		});
 
 		it('should not call withdraw when amount is empty', async () => {

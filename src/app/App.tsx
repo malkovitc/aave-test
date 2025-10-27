@@ -66,13 +66,19 @@ function AppContent() {
 							<p className="text-sm text-muted-foreground">Tokens in your wallet that can be deposited</p>
 						</div>
 
-						{!isConnected || isLoadingTokens ? (
-							// Show skeleton when loading OR when not connected (prevents flash during reconnection)
+						{isLoadingTokens ? (
+							// Show skeleton only when loading
 							<div className="space-y-3">
 								<TokenBalanceCardSkeleton />
 								<TokenBalanceCardSkeleton />
 								<TokenBalanceCardSkeleton />
 							</div>
+						) : !isConnected ? (
+							<Card>
+								<CardContent className="py-12 text-center">
+									<p className="text-muted-foreground">Connect your wallet to view balances</p>
+								</CardContent>
+							</Card>
 						) : tokens.length > 0 ? (
 							<div className="space-y-3">
 								{tokens.map((token) => (

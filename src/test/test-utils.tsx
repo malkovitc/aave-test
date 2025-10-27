@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi';
 import { createConfig, http } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { UserTokensProvider } from '@/features/tokens/context/UserTokensContext';
+import { DepositProvider } from '@/features/lending/context/DepositContext';
 
 /**
  * Test utilities for rendering components with providers
@@ -53,7 +54,9 @@ function AllTheProviders({
 	return (
 		<WagmiProvider config={wagmiConfig}>
 			<QueryClientProvider client={queryClient}>
-				<UserTokensProvider>{children}</UserTokensProvider>
+				<UserTokensProvider>
+					<DepositProvider>{children}</DepositProvider>
+				</UserTokensProvider>
 			</QueryClientProvider>
 		</WagmiProvider>
 	);

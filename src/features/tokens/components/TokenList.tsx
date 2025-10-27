@@ -18,6 +18,8 @@ export function TokenList() {
 	const { isConnected } = useWallet();
 	const { balances, isLoading } = useTokenBalances();
 
+	console.log('[TokenList] isConnected:', isConnected, 'isLoading:', isLoading);
+
 	return (
 		<div>
 			<div className="mb-4">

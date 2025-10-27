@@ -116,9 +116,8 @@ export const DepositFormCard = forwardRef<DepositFormCardRef, {}>((props, ref) =
 				return false;
 			}
 		}, [debouncedAmount, balanceFormatted, safeToken.decimals]);
+		
 		// Stabilize button label to prevent flickering during input
-		// needsApproval updates after debounce, but React re-renders on every localAmount change
-		// This memo keeps the label stable while user is typing
 		const buttonLabel = useMemo(() => {
 			if (localAmount !== debouncedAmount && localAmount !== '') {
 				// User is still typing - keep current label stable

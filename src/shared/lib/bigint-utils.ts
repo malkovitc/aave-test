@@ -15,7 +15,10 @@
  */
 
 // Formatting
-export { formatTokenAmount } from './bigint/format';
+export { formatTokenAmount, formatTokenWithSymbol } from './bigint/format';
 
 // Parsing & Validation
 export { parseTokenAmount, isValidTokenAmount } from './bigint/parse';
+
+// Math & Comparison
+export { calculatePercentage, compareAmounts, maxAmount, minAmount } from './bigint/math';

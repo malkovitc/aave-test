@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { parseUnits } from 'viem';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useApprove } from './use-approve';
@@ -13,6 +13,7 @@ import { useDepositContext } from '../context/DepositContext';
 export function useDepositFlow(token: TokenConfig, balance: string) {
 	const [amount, setAmount] = useState('');
 	const { setIsDepositing } = useDepositContext();
+	const hasTriggeredAutoDeposit = useRef(false);
 
 	const { allowances, poolAddress, refetch: refetchAllowances, isLoading: isAllowancesLoading } = useTokenAllowances();
 	const { refetch: refetchBalances } = useTokenBalances();
@@ -78,12 +79,20 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 
 	// Refetch allowances after approval and auto-trigger deposit
 	useEffect(() => {
-		if (approve.isSuccess) {
+		if (approve.isSuccess && !hasTriggeredAutoDeposit.current) {
+			hasTriggeredAutoDeposit.current = true;
 			refetchAllowances();
 			// Auto-trigger deposit after successful approval
 			handleDeposit();
 		}
 	}, [approve.isSuccess, refetchAllowances, handleDeposit]);
+
+	// Reset auto-deposit flag when approval is reset
+	useEffect(() => {
+		if (!approve.isSuccess && hasTriggeredAutoDeposit.current) {
+			hasTriggeredAutoDeposit.current = false;
+		}
+	}, [approve.isSuccess]);
 
 	// Reset form and refetch balances after successful deposit
 	useEffect(() => {

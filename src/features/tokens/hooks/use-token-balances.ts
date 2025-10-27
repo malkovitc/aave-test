@@ -49,9 +49,12 @@ export function useTokenBalances() {
 		[tokens, data]
 	);
 
+	const finalIsLoading = isLoading && !!address; // Only show loading when wallet is connected
+	console.log('[useTokenBalances] address:', address, 'isLoading:', isLoading, 'finalIsLoading:', finalIsLoading);
+
 	return {
 		balances,
-		isLoading,
+		isLoading: finalIsLoading,
 		error,
 		refetch,
 	};

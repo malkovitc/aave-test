@@ -79,7 +79,8 @@ export function useATokenBalances() {
 
 	// Use isLoading (initial load) but NOT isFetching (background refetch)
 	// This prevents the skeleton from flashing every 30 seconds during refetchInterval
-	const shouldShowLoading = isLoadingInitialTokens || isWaitingForBalanceData || isLoading;
+	// Important: Only show loading when wallet is connected (hasAddress)
+	const shouldShowLoading = hasAddress && (isLoadingInitialTokens || isWaitingForBalanceData || isLoading);
 
 	return {
 		balances,
