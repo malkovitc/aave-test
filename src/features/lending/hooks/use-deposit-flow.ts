@@ -76,12 +76,14 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 		setAmount(balance);
 	}, [balance]);
 
-	// Refetch allowances after approval
+	// Refetch allowances after approval and auto-trigger deposit
 	useEffect(() => {
 		if (approve.isSuccess) {
 			refetchAllowances();
+			// Auto-trigger deposit after successful approval
+			handleDeposit();
 		}
-	}, [approve.isSuccess, refetchAllowances]);
+	}, [approve.isSuccess, refetchAllowances, handleDeposit]);
 
 	// Reset form and refetch balances after successful deposit
 	useEffect(() => {

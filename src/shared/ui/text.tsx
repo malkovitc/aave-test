@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Slot } from '@radix-ui/react-slot';
 import { cn } from '@/shared/lib/cn';
 
 /**
@@ -26,14 +27,21 @@ import { cn } from '@/shared/lib/cn';
  *
  * @example
  * <SecondaryText>Available: {balance} ETH</SecondaryText>
+ * <SecondaryText asChild><a href="#">Link</a></SecondaryText>
  */
-export const SecondaryText = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
-	({ className, children, ...props }, ref) => (
-		<span ref={ref} className={cn('text-sm text-muted-foreground', className)} {...props}>
+export const SecondaryText = React.forwardRef<
+	HTMLSpanElement,
+	React.HTMLAttributes<HTMLSpanElement> & {
+		asChild?: boolean;
+	}
+>(({ className, children, asChild = false, ...props }, ref) => {
+	const Comp = asChild ? Slot : 'span';
+	return (
+		<Comp ref={ref} className={cn('text-sm text-muted-foreground', className)} {...props}>
 			{children}
-		</span>
-	)
-);
+		</Comp>
+	);
+});
 SecondaryText.displayName = 'SecondaryText';
 
 /**
@@ -45,14 +53,21 @@ SecondaryText.displayName = 'SecondaryText';
  *
  * @example
  * <HintText>Contract: {formatAddress(address)}</HintText>
+ * <HintText asChild><button>Click me</button></HintText>
  */
-export const HintText = React.forwardRef<HTMLSpanElement, React.HTMLAttributes<HTMLSpanElement>>(
-	({ className, children, ...props }, ref) => (
-		<span ref={ref} className={cn('text-xs text-muted-foreground', className)} {...props}>
+export const HintText = React.forwardRef<
+	HTMLSpanElement,
+	React.HTMLAttributes<HTMLSpanElement> & {
+		asChild?: boolean;
+	}
+>(({ className, children, asChild = false, ...props }, ref) => {
+	const Comp = asChild ? Slot : 'span';
+	return (
+		<Comp ref={ref} className={cn('text-xs text-muted-foreground', className)} {...props}>
 			{children}
-		</span>
-	)
-);
+		</Comp>
+	);
+});
 HintText.displayName = 'HintText';
 
 /**
