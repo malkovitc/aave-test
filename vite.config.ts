@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
-export default defineConfig({
-  base: '/aave-test/',
+export default defineConfig(({ mode }) => ({
+  base: mode === 'production' ? '/aave-test/' : '/',
   plugins: [
     react(),
     visualizer({
@@ -38,4 +38,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
