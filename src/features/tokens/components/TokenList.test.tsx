@@ -79,8 +79,8 @@ describe('TokenList', () => {
 
 		renderWithProviders(<TokenList />);
 
-		// Should render loading skeletons (3 of them)
-		const skeletons = document.querySelectorAll('.animate-pulse');
+		// Should render loading skeletons (with animate-shimmer class)
+		const skeletons = document.querySelectorAll('.animate-shimmer');
 		expect(skeletons.length).toBeGreaterThan(0);
 	});
 
