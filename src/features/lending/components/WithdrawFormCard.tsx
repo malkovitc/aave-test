@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { ErrorText, SecondaryText, InfoText } from '@/shared/ui/text';
+import { ErrorText, InfoText, SecondaryText } from '@/shared/ui/text';
 import { useWithdrawFlow } from '../hooks/use-withdraw-flow';
 import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
 import { useTokenForm } from '../hooks/use-token-form';
@@ -23,7 +23,7 @@ export interface WithdrawFormCardRef {
  * Withdraw form - uncontrolled component with imperative selectToken() API.
  * Handles withdrawal from Aave positions.
  */
-export const WithdrawFormCard = forwardRef<WithdrawFormCardRef, {}>((props, ref) => {
+export const WithdrawFormCard = forwardRef<WithdrawFormCardRef>((_props, ref) => {
 	const { isConnected, isWrongNetwork, switchToSupportedNetwork } = useWallet();
 	const { positions } = useATokenBalances();
 	const { withdrawInputRef } = useDepositContext();

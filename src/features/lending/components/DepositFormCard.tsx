@@ -5,7 +5,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { ErrorText, SecondaryText, InfoText } from '@/shared/ui/text';
+import { ErrorText, InfoText } from '@/shared/ui/text';
 import { useDepositFlow } from '../hooks/use-deposit-flow';
 import { useTokenForm } from '../hooks/use-token-form';
 import { useWallet } from '@/features/wallet/hooks/use-wallet';
@@ -54,7 +54,7 @@ function getActionLabel({
  * Deposit form - uncontrolled component with imperative selectToken() API.
  * Handles approval + deposit flow with supplyWithPermit for supported tokens.
  */
-export const DepositFormCard = forwardRef<DepositFormCardRef, {}>((props, ref) => {
+export const DepositFormCard = forwardRef<DepositFormCardRef>((_props, ref) => {
 	const { isConnected, isWrongNetwork, switchToSupportedNetwork } = useWallet();
 	const { depositInputRef } = useDepositContext();
 

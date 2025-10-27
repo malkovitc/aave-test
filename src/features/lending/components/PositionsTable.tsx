@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/shared/ui/button';
 import { Copy } from 'lucide-react';
 import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
-import { useWallet } from '@/features/wallet/hooks/use-wallet';
 import { PositionsTableSkeleton } from '@/shared/components/PositionsTableSkeleton';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useClipboardToast } from '@/shared/hooks/use-clipboard-toast';
@@ -35,7 +34,6 @@ interface PositionsTableProps {
  * - Callbacks memoized with useCallback
  */
 function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
-	const { isConnected } = useWallet();
 	const { positions, isLoading } = useATokenBalances();
 	const copyAddress = useClipboardToast('Address copied to clipboard');
 

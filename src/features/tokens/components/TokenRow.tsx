@@ -1,7 +1,6 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import { type TokenConfig } from '../config/tokens';
 import { Copy } from 'lucide-react';
-import { DepositFormCard } from '@/features/lending/components/DepositFormCard';
 import { TokenIcon } from '@/shared/components/TokenIcon';
 import { useClipboardToast } from '@/shared/hooks/use-clipboard-toast';
 
@@ -63,7 +62,6 @@ function TokenRowComponent({ token, balance }: TokenRowProps) {
 					</div>
 				</div>
 			</div>
-			<DepositFormCard selectedTokenSymbol={token.symbol} />
 		</div>
 	);
 }

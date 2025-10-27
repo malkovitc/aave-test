@@ -20,15 +20,6 @@ export interface TokenData {
  */
 type ERC20Function = 'symbol' | 'name' | 'decimals' | 'balanceOf';
 
-/**
- * Generic contract read configuration
- */
-interface ContractReadConfig<T> {
-	address: Address;
-	abi: unknown;
-	functionName: string;
-	args?: unknown[];
-}
 
 /**
  * Reads data from an ERC20 token contract
@@ -43,7 +34,7 @@ async function readERC20<T>(
 	publicClient: PublicClient,
 	tokenAddress: Address,
 	functionName: ERC20Function,
-	args?: unknown[]
+	args?: readonly [`0x${string}`]
 ): Promise<T> {
 	return publicClient.readContract({
 		address: tokenAddress,

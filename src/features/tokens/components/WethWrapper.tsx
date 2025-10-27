@@ -163,7 +163,7 @@ function WethWrapperComponent() {
 				)}
 
 				{/* Info */}
-				<HintText>{INFO_MESSAGES.MIN_ETH_FOR_GAS(MIN_ETH_FOR_GAS)}</HintText>
+				<HintText>{INFO_MESSAGES.MIN_ETH_FOR_GAS(MIN_ETH_FOR_GAS.toString())}</HintText>
 			</CardContent>
 		</Card>
 	);

@@ -55,7 +55,7 @@ const BUTTON_STYLES = {
  * @param ids - Possible connector IDs to search for
  * @returns Found connector or undefined
  */
-function findConnector(connectors: Connector[], names: string[], ids?: string[]): Connector | undefined {
+function findConnector(connectors: readonly Connector[], names: string[], ids?: string[]): Connector | undefined {
 	return connectors.find((connector) => {
 		const nameLower = connector.name.toLowerCase();
 		const matchesName = names.some((name) => nameLower.includes(name.toLowerCase()));
@@ -77,7 +77,7 @@ function findConnector(connectors: Connector[], names: string[], ids?: string[])
  * @param connectors - Array of all available connectors
  * @returns Organized connectors by priority
  */
-function organizeConnectors(connectors: Connector[]): OrganizedConnectors {
+function organizeConnectors(connectors: readonly Connector[]): OrganizedConnectors {
 	const family = findConnector(connectors, ['family']);
 	const metamask = findConnector(connectors, ['metamask'], ['injected']);
 	const coinbase = findConnector(connectors, ['coinbase wallet']);
@@ -236,7 +236,7 @@ function ConnectWalletDialogComponent({ trigger }: ConnectWalletDialogProps) {
 	/**
 	 * Shows divider only if there's a primary button (Family)
 	 */
-	const showDivider = walletButtons.length > 0 && walletButtons[0].variant === 'default';
+	const showDivider = walletButtons.length > 0 && walletButtons[0]?.variant === 'default';
 
 	/**
 	 * Handles wallet connection and closes dialog
