@@ -29,7 +29,10 @@ interface TokenBalanceCardProps {
  * - Gap: gap-2 md:gap-3
  */
 function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCardProps) {
-	const { isDepositing } = useDepositContext();
+	const { isDepositing, depositingTokenSymbol } = useDepositContext();
+
+	// Check if THIS specific token is being deposited
+	const isThisTokenDepositing = isDepositing && depositingTokenSymbol === token.symbol;
 
 	const copyAddress = useCallback(async () => {
 		try {
@@ -96,7 +99,7 @@ function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCa
 				disabled={isDepositing}
 				className="flex-shrink-0 text-xs sm:text-sm px-3 sm:px-4"
 			>
-				{isDepositing ? (
+				{isThisTokenDepositing ? (
 					<>
 						<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
 						<span className="hidden sm:inline">Depositing...</span>

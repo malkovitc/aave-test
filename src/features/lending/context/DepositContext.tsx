@@ -5,8 +5,12 @@ interface DepositContextValue {
 	// State for disabling buttons during deposit/withdraw
 	isDepositing: boolean;
 	setIsDepositing: (value: boolean) => void;
+	depositingTokenSymbol: string | null;
+	setDepositingTokenSymbol: (symbol: string | null) => void;
 	isWithdrawing: boolean;
 	setIsWithdrawing: (value: boolean) => void;
+	withdrawingTokenSymbol: string | null;
+	setWithdrawingTokenSymbol: (symbol: string | null) => void;
 
 	// Refs for auto-focus after scroll
 	depositInputRef: React.RefObject<HTMLInputElement>;
@@ -22,6 +26,7 @@ const DepositContext = createContext<DepositContextValue | undefined>(undefined)
  *
  * Purpose:
  * - Share `isDepositing`/`isWithdrawing` state to disable all buttons during transactions
+ * - Track which specific token is being deposited/withdrawn for better UX
  * - Provide shared refs for auto-focusing amount inputs after scroll
  *
  * Architecture:
@@ -31,7 +36,9 @@ const DepositContext = createContext<DepositContextValue | undefined>(undefined)
  */
 export function DepositProvider({ children }: { children: ReactNode }) {
 	const [isDepositing, setIsDepositing] = useState(false);
+	const [depositingTokenSymbol, setDepositingTokenSymbol] = useState<string | null>(null);
 	const [isWithdrawing, setIsWithdrawing] = useState(false);
+	const [withdrawingTokenSymbol, setWithdrawingTokenSymbol] = useState<string | null>(null);
 	const depositInputRef = useRef<HTMLInputElement>(null);
 	const withdrawInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,14 +62,18 @@ export function DepositProvider({ children }: { children: ReactNode }) {
 		() => ({
 			isDepositing,
 			setIsDepositing,
+			depositingTokenSymbol,
+			setDepositingTokenSymbol,
 			isWithdrawing,
 			setIsWithdrawing,
+			withdrawingTokenSymbol,
+			setWithdrawingTokenSymbol,
 			depositInputRef,
 			withdrawInputRef,
 			focusDepositInput,
 			focusWithdrawInput,
 		}),
-		[isDepositing, isWithdrawing, focusDepositInput, focusWithdrawInput]
+		[isDepositing, depositingTokenSymbol, isWithdrawing, withdrawingTokenSymbol, focusDepositInput, focusWithdrawInput]
 	);
 
 	return <DepositContext.Provider value={value}>{children}</DepositContext.Provider>;

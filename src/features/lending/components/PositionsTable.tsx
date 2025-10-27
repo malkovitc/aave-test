@@ -2,12 +2,13 @@ import { memo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
-import { Copy } from 'lucide-react';
+import { Copy, Loader2 } from 'lucide-react';
 import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
 import { PositionsTableSkeleton } from '@/shared/components/PositionsTableSkeleton';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useClipboardToast } from '@/shared/hooks/use-clipboard-toast';
 import { formatAddress } from '@/shared/lib/format-address';
+import { useDepositContext } from '../context/DepositContext';
 
 interface PositionsTableProps {
 	onWithdraw?: (token: TokenConfig) => void;
@@ -36,6 +37,7 @@ interface PositionsTableProps {
 function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 	const { positions, isLoading } = useATokenBalances();
 	const copyAddress = useClipboardToast('Address copied to clipboard');
+	const { isWithdrawing, withdrawingTokenSymbol } = useDepositContext();
 
 	// Memoize withdraw click handler
 	const handleWithdrawClick = useCallback(
@@ -78,14 +80,32 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 										</TableCell>
 									</TableRow>
 								) : (
-									positions.map(({ token, aTokenAddress, formatted, raw }) => (
-										<TableRow key={token.symbol}>
-											<TableCell>
-												<div>
-													<span className="font-medium text-foreground">a{token.symbol}</span>
-													{/* Mobile: show address below */}
-													<div className="md:hidden flex items-center gap-1 mt-1">
-														<span className="text-xs text-muted-foreground">{formatAddress(aTokenAddress)}</span>
+									positions.map(({ token, aTokenAddress, formatted, raw }) => {
+										// Check if THIS specific token is being withdrawn
+										const isThisTokenWithdrawing = isWithdrawing && withdrawingTokenSymbol === token.symbol;
+
+										return (
+											<TableRow key={token.symbol}>
+												<TableCell>
+													<div>
+														<span className="font-medium text-foreground">a{token.symbol}</span>
+														{/* Mobile: show address below */}
+														<div className="md:hidden flex items-center gap-1 mt-1">
+															<span className="text-xs text-muted-foreground">{formatAddress(aTokenAddress)}</span>
+															<button
+																type="button"
+																onClick={() => copyAddress(aTokenAddress)}
+																className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
+																aria-label="Copy aToken address"
+															>
+																<Copy className="w-3 h-3" aria-hidden="true" />
+															</button>
+														</div>
+													</div>
+												</TableCell>
+												<TableCell className="hidden md:table-cell">
+													<div className="flex items-center gap-2">
+														<span className="text-muted-foreground">{formatAddress(aTokenAddress)}</span>
 														<button
 															type="button"
 															onClick={() => copyAddress(aTokenAddress)}
@@ -95,38 +115,32 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 															<Copy className="w-3 h-3" aria-hidden="true" />
 														</button>
 													</div>
-												</div>
-											</TableCell>
-											<TableCell className="hidden md:table-cell">
-												<div className="flex items-center gap-2">
-													<span className="text-muted-foreground">{formatAddress(aTokenAddress)}</span>
-													<button
+												</TableCell>
+												<TableCell className="text-right">
+													<span className="text-foreground">{formatted}</span>
+												</TableCell>
+												<TableCell className="text-right">
+													<Button
 														type="button"
-														onClick={() => copyAddress(aTokenAddress)}
-														className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
-														aria-label="Copy aToken address"
+														size="sm"
+														variant="outline"
+														onClick={() => handleWithdrawClick(token)}
+														disabled={raw === 0n || isWithdrawing}
+														aria-label={`Withdraw ${token.symbol}`}
 													>
-														<Copy className="w-3 h-3" aria-hidden="true" />
-													</button>
-												</div>
-											</TableCell>
-											<TableCell className="text-right">
-												<span className="text-foreground">{formatted}</span>
-											</TableCell>
-											<TableCell className="text-right">
-												<Button
-													type="button"
-													size="sm"
-													variant="outline"
-													onClick={() => handleWithdrawClick(token)}
-													disabled={raw === 0n}
-													aria-label={`Withdraw ${token.symbol}`}
-												>
-													Withdraw
-												</Button>
-											</TableCell>
-										</TableRow>
-									))
+														{isThisTokenWithdrawing ? (
+															<>
+																<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+																Withdrawing...
+															</>
+														) : (
+															'Withdraw'
+														)}
+													</Button>
+												</TableCell>
+											</TableRow>
+										);
+									})
 								)}
 							</TableBody>
 						</Table>

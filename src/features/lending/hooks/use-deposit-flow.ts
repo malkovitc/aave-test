@@ -12,7 +12,7 @@ import { useDepositContext } from '../context/DepositContext';
 
 export function useDepositFlow(token: TokenConfig, balance: string) {
 	const [amount, setAmount] = useState('');
-	const { setIsDepositing } = useDepositContext();
+	const { setIsDepositing, setDepositingTokenSymbol } = useDepositContext();
 	const hasTriggeredAutoDeposit = useRef(false);
 	const previousTokenSymbol = useRef(token.symbol);
 
@@ -134,10 +134,14 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 	useEffect(() => {
 		const isCurrentlyDepositing = token.supportsPermit ? supplyWithPermit.isPending : deposit.isPending;
 		const isCurrentlyApproving = approve.isPending;
+		const isPending = isCurrentlyApproving || isCurrentlyDepositing;
 
 		// Set isDepositing to true if either approving or depositing
-		setIsDepositing(isCurrentlyApproving || isCurrentlyDepositing);
-	}, [approve.isPending, deposit.isPending, supplyWithPermit.isPending, token.supportsPermit, setIsDepositing]);
+		setIsDepositing(isPending);
+
+		// Track which token is being deposited (for UI to show loader on specific token)
+		setDepositingTokenSymbol(isPending ? token.symbol : null);
+	}, [approve.isPending, deposit.isPending, supplyWithPermit.isPending, token.supportsPermit, token.symbol, setIsDepositing, setDepositingTokenSymbol]);
 
 	return {
 		amount,

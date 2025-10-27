@@ -5,6 +5,7 @@ import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useWithdraw } from './use-withdraw';
 import { useTokenBalances } from '@/features/tokens/hooks/use-token-balances';
 import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
+import { useDepositContext } from '../context/DepositContext';
 
 /**
  * Hook for withdraw form flow
@@ -19,6 +20,7 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	const [amount, setAmount] = useState('');
 	const [isMaxWithdraw, setIsMaxWithdraw] = useState(false);
 	const queryClient = useQueryClient();
+	const { setIsWithdrawing, setWithdrawingTokenSymbol } = useDepositContext();
 
 	const { refetch: refetchBalances } = useTokenBalances();
 	const { refetch: refetchATokens } = useATokenBalances();
@@ -68,6 +70,13 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 			setIsMaxWithdraw(false);
 		}
 	}, [amount, isMaxWithdraw]);
+
+	// Sync withdraw pending state to context
+	useEffect(() => {
+		const isPending = withdraw.isPending;
+		setIsWithdrawing(isPending);
+		setWithdrawingTokenSymbol(isPending ? token.symbol : null);
+	}, [withdraw.isPending, token.symbol, setIsWithdrawing, setWithdrawingTokenSymbol]);
 
 	return {
 		amount,
