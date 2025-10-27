@@ -1,4 +1,4 @@
-import { http, createConfig } from 'wagmi';
+import { http, createConfig, fallback } from 'wagmi';
 import { sepolia } from 'wagmi/chains';
 import { injected, coinbaseWallet, walletConnect } from 'wagmi/connectors';
 import { familyAccountsConnector } from 'family';
@@ -12,6 +12,10 @@ import { env } from '@/shared/lib/env';
  * 2. MetaMask (injected with metaMask target)
  * 3. Coinbase Wallet
  * 4. WalletConnect (for "Other Wallets" option)
+ *
+ * RPC Configuration:
+ * Uses fallback transport with multiple public RPC endpoints to ensure reliability.
+ * If one RPC fails or rate limits, automatically switches to the next one.
  */
 export const config = createConfig({
 	chains: [sepolia],
@@ -46,6 +50,14 @@ export const config = createConfig({
 		}),
 	],
 	transports: {
-		[sepolia.id]: http(env.VITE_RPC_URL),
+		[sepolia.id]: fallback([
+			// Primary RPC from env
+			http(env.VITE_RPC_URL),
+			// Fallback public RPCs
+			http('https://rpc.sepolia.org'),
+			http('https://rpc2.sepolia.org'),
+			http('https://ethereum-sepolia-rpc.publicnode.com'),
+			http('https://rpc.sepolia.online'),
+		]),
 	},
 });

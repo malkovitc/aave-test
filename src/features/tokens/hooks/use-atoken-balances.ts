@@ -81,9 +81,9 @@ export function useATokenBalances() {
 		}
 	}, [currentPositions, isFetching]);
 
-	// During refetch, show previous positions instead of empty state
-	// This prevents the "No positions yet" message from flashing
-	const positions = isFetching && currentPositions.length === 0 ? previousPositionsRef.current : currentPositions;
+	// During refetch, show previous positions to prevent flickering
+	// This ensures smooth transitions when positions update
+	const positions = isFetching && previousPositionsRef.current.length > 0 ? previousPositionsRef.current : currentPositions;
 
 	// Determine loading state to prevent showing empty states prematurely
 	// Only show loading skeleton during INITIAL load, not during background refetches

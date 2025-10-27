@@ -59,13 +59,13 @@ export function useWithdraw(token: TokenConfig) {
 			toast.loading('Confirming transaction...', { id: toastId });
 		}
 
-		// Handle success
-		if (isSuccess && receiptStatus === 'success') {
+		// Handle success - isSuccess is enough, receiptStatus might lag behind
+		if (isSuccess) {
 			toast.success(`Withdrawn ${token.symbol} successfully!`, { id: toastId });
 			return;
 		}
 
-		// Handle failure
+		// Handle failure - only if not successful
 		const hasFailed = txError || receiptStatus === 'error';
 		if (hasFailed && !isSuccess) {
 			console.error('❌ Withdraw FAILED:', {

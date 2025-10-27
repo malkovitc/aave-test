@@ -26,9 +26,19 @@ export function useTokenForm(filterTokens?: (tokens: TokenConfig[]) => TokenConf
 		}
 	}, [isConnected]);
 
+	// Auto-select first token if no token selected OR selected token is no longer in the list
 	useEffect(() => {
 		if (tokens.length === 0) return;
+
+		// If no token selected, select first
 		if (!selectedToken) {
+			setSelectedToken(tokens[0]!);
+			return;
+		}
+
+		// If selected token is no longer in the filtered list (e.g., balance became 0), select first
+		const isSelectedTokenInList = tokens.some((t) => t.symbol === selectedToken.symbol);
+		if (!isSelectedTokenInList) {
 			setSelectedToken(tokens[0]!);
 		}
 	}, [tokens, selectedToken]);

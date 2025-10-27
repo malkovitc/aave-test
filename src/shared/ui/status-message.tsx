@@ -57,10 +57,7 @@ export interface StatusMessageProps extends React.HTMLAttributes<HTMLDivElement>
  * StatusMessage component
  * Displays success, error, info, or warning messages
  *
- * Replaces repeated patterns like:
- * - WethWrapper.tsx:128-141 (success message)
- * - WethWrapper.tsx:144-157 (success message)
- * - Inline success/error notifications throughout the app
+ * Replaces repeated patterns of inline success/error notifications throughout the app
  *
  * Features:
  * - Consistent styling across all status messages
