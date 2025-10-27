@@ -1,5 +1,5 @@
 import { useReadContracts } from 'wagmi';
-import type { Address } from 'viem';
+import type { Address, Abi } from 'viem';
 import { TOKENS } from '../config/tokens';
 import { getChainConfig } from '../config/chains';
 import { useWallet } from '@/features/wallet/hooks/use-wallet';
@@ -24,7 +24,7 @@ export function useReserveTokens() {
 	// Create contracts array for batch reading
 	const contracts = TOKENS.map((token) => ({
 		address: poolAddress as Address,
-		abi: aavePoolAbi, // ABI from JSON import
+		abi: aavePoolAbi as Abi, // ABI from JSON import
 		functionName: 'getReserveData' as const,
 		args: [token.address] as const,
 		chainId,
