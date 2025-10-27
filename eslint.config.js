@@ -17,6 +17,7 @@ export default [
       'test-*.js',
       '**/*.test.ts',
       '**/*.test.tsx',
+      'documents/**',
     ],
   },
   {

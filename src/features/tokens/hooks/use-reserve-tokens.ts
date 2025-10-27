@@ -24,7 +24,7 @@ export function useReserveTokens() {
 	// Create contracts array for batch reading
 	const contracts = TOKENS.map((token) => ({
 		address: poolAddress as Address,
-		abi: aavePoolAbi as any, // ABI from JSON import
+		abi: aavePoolAbi, // ABI from JSON import
 		functionName: 'getReserveData' as const,
 		args: [token.address] as const,
 		chainId,

@@ -33,7 +33,7 @@ export function useTransactionMonitor(hash: Hex | undefined) {
 		// Early returns for validation
 		if (!hash || !isConfirming || manualReceiptChecked) return;
 
-		let timeoutId: NodeJS.Timeout;
+		let timeoutId: ReturnType<typeof setTimeout>;
 		let isCancelled = false;
 
 		const checkReceipt = async () => {

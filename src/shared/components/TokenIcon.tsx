@@ -23,7 +23,7 @@ interface TokenConfig {
 	alt: string;
 	objectFit?: 'contain' | 'cover';
 	rounded?: boolean;
-	renderCustom?: (size: number, className?: string) => JSX.Element;
+	renderCustom?: (size: number, className?: string) => React.ReactElement;
 }
 
 /**

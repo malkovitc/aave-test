@@ -192,7 +192,7 @@ export const DepositFormCard = forwardRef<DepositFormCardRef>((_props, ref) => {
 								onChange={(e) => handleAmountChange(e.target.value)}
 								disabled={!isConnected || isLoading || isWrongNetwork || !selectedToken}
 								aria-invalid={debouncedAmount !== '' && !isLocallyValid}
-								tttttttaria-describedby={debouncedAmount !== '' && !isLocallyValid ? 'deposit-amount-error' : undefined}
+								aria-describedby={debouncedAmount !== '' && !isLocallyValid ? 'deposit-amount-error' : undefined}
 							/>
 							<Button
 								type="button"
