@@ -37,7 +37,13 @@ interface PositionsTableProps {
 function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 	const { positions, isLoading } = useATokenBalances();
 	const copyAddress = useClipboardToast('Address copied to clipboard');
-	const { isWithdrawing, withdrawingTokenSymbol } = useDepositContext();
+	const { isWithdrawing, withdrawingTokenSymbol, isDepositing, depositingTokenSymbol } = useDepositContext();
+
+	// Calculate existing token symbols from positions
+	const existingTokenSymbols = new Set(positions.map((p) => p.token.symbol));
+
+	// Check if we should show a pending row for the token being deposited
+	const shouldShowPendingRow = isDepositing && depositingTokenSymbol && !existingTokenSymbols.has(depositingTokenSymbol);
 
 	// Memoize withdraw click handler
 	const handleWithdrawClick = useCallback(
@@ -73,14 +79,15 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{positions.length === 0 ? (
+								{positions.length === 0 && !shouldShowPendingRow ? (
 									<TableRow>
 										<TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
 											No positions yet. Deposit tokens to start earning interest.
 										</TableCell>
 									</TableRow>
 								) : (
-									positions.map(({ token, aTokenAddress, formatted, raw }) => {
+									<>
+										{positions.map(({ token, aTokenAddress, formatted, raw }) => {
 										// Check if THIS specific token is being withdrawn
 										const isThisTokenWithdrawing = isWithdrawing && withdrawingTokenSymbol === token.symbol;
 
@@ -140,7 +147,33 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 												</TableCell>
 											</TableRow>
 										);
-									})
+									})}
+
+										{/* Show pending row for new token being deposited */}
+										{shouldShowPendingRow && (
+											<TableRow key={`pending-${depositingTokenSymbol}`} className="animate-pulse">
+												<TableCell>
+													<div>
+														<span className="font-medium text-muted-foreground">a{depositingTokenSymbol}</span>
+													</div>
+												</TableCell>
+												<TableCell className="hidden md:table-cell">
+													<div className="h-4 w-24 bg-muted rounded animate-pulse" />
+												</TableCell>
+												<TableCell className="text-right">
+													<div className="flex justify-end">
+														<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+													</div>
+												</TableCell>
+												<TableCell className="text-right">
+													<Button type="button" size="sm" variant="outline" disabled>
+														<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+														Pending...
+													</Button>
+												</TableCell>
+											</TableRow>
+										)}
+									</>
 								)}
 							</TableBody>
 						</Table>

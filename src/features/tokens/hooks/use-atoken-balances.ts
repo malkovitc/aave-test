@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
 import { type Address } from 'viem';
 import { type TokenConfig } from '../config/tokens';
@@ -38,7 +38,7 @@ export function useATokenBalances() {
 	);
 
 	// Fetch all balances in a single multicall
-	const { data, isLoading, error, refetch } = useReadContracts({
+	const { data, isLoading, isFetching, error, refetch } = useReadContracts({
 		contracts,
 		query: {
 			enabled: !!address && userTokens.length > 0,
@@ -69,7 +69,21 @@ export function useATokenBalances() {
 
 	// Filter positions with meaningful balance
 	// Exclude tokens with dust amounts (raw > 0 but formatted as "0")
-	const positions = balances.filter((b) => b.raw > 0n && b.formatted !== '0');
+	const currentPositions = balances.filter((b) => b.raw > 0n && b.formatted !== '0');
+
+	// Store previous positions to prevent flickering during refetch
+	const previousPositionsRef = useRef<ATokenBalance[]>([]);
+
+	// Update previous positions only when we have new valid data and not currently fetching
+	useEffect(() => {
+		if (currentPositions.length > 0 && !isFetching) {
+			previousPositionsRef.current = currentPositions;
+		}
+	}, [currentPositions, isFetching]);
+
+	// During refetch, show previous positions instead of empty state
+	// This prevents the "No positions yet" message from flashing
+	const positions = isFetching && currentPositions.length === 0 ? previousPositionsRef.current : currentPositions;
 
 	// Determine loading state to prevent showing empty states prematurely
 	// Only show loading skeleton during INITIAL load, not during background refetches

@@ -22,7 +22,7 @@ function AppContent() {
 	const { tokens: allTokens, isLoading: isLoadingTokens } = useUserTokensContext();
 	const { focusDepositInput, focusWithdrawInput } = useDepositContext();
 
-	const tokens = allTokens.filter((t) => t.balance > 0n);
+	const tokens = allTokens;
 
 	const depositFormRef = useRef<DepositFormCardRef>(null);
 	const withdrawFormRef = useRef<WithdrawFormCardRef>(null);
