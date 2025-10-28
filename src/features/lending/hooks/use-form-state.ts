@@ -51,10 +51,13 @@ export function useFormState(params: FormStateParams) {
 
 	// Validation state (for aria-invalid and error display)
 	const showValidationError = useMemo(() => {
+		// Only show error if user has interacted with THIS specific input
+		if (localAmount === '') return false;
+
 		if (mode === 'deposit') {
 			return debouncedAmount !== '' && !isLocallyValid;
 		}
-		return localAmount !== '' && localAmount === debouncedAmount && !flow.isValidAmount;
+		return localAmount === debouncedAmount && !flow.isValidAmount;
 	}, [mode, debouncedAmount, isLocallyValid, localAmount, flow.isValidAmount]);
 
 	// Base disabled conditions (common for all inputs/buttons)
@@ -105,7 +108,7 @@ export function useFormState(params: FormStateParams) {
 	} as const;
 
 	// Helper function to determine current deposit state and return label
-	const getDepositLabel = (): string => {
+	const getDepositLabel = useCallback((): string => {
 		const isTyping = localAmount !== debouncedAmount && localAmount !== '';
 		const { isApproving, isDepositing, needsApproval } = depositFlow;
 
@@ -120,18 +123,22 @@ export function useFormState(params: FormStateParams) {
 		].find(Boolean) as keyof typeof DEPOSIT_LABELS;
 
 		return DEPOSIT_LABELS[stateKey];
-	};
+		// DEPOSIT_LABELS is a const defined in the same function scope and never changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [localAmount, debouncedAmount, depositFlow]);
 
 	// Helper function to determine current withdraw state and return label
-	const getWithdrawLabel = (): string => {
+	const getWithdrawLabel = useCallback((): string => {
 		const stateKey = (withdrawFlow.isWithdrawing ? 'withdrawing' : 'idle') as keyof typeof WITHDRAW_LABELS;
 		return WITHDRAW_LABELS[stateKey];
-	};
+		// WITHDRAW_LABELS is a const defined in the same function scope and never changes
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [withdrawFlow.isWithdrawing]);
 
 	// Single expression to get button label based on mode
 	const buttonLabel = useMemo(
 		() => (mode === 'withdraw' ? getWithdrawLabel() : getDepositLabel()),
-		[mode, localAmount, debouncedAmount, depositFlow, withdrawFlow]
+		[mode, getDepositLabel, getWithdrawLabel]
 	);
 
 	return {

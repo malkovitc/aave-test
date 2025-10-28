@@ -97,57 +97,64 @@ function organizeConnectors(connectors: readonly Connector[]): OrganizedConnecto
 }
 
 /**
+ * Wallet configuration for button creation
+ */
+interface WalletConfig {
+	key: keyof OrganizedConnectors;
+	label: string;
+	icon: string;
+	isPrimary?: boolean;
+}
+
+/**
+ * Wallet configurations in priority order
+ */
+const WALLET_CONFIGS: WalletConfig[] = [
+	{ key: 'family', label: 'Continue with Family', icon: WALLET_ICONS.FAMILY, isPrimary: true },
+	{ key: 'metamask', label: 'MetaMask', icon: WALLET_ICONS.METAMASK },
+	{ key: 'coinbase', label: 'Coinbase Wallet', icon: WALLET_ICONS.COINBASE },
+];
+
+/**
+ * Creates a wallet button configuration
+ *
+ * @param connector - Wallet connector
+ * @param config - Wallet display configuration
+ * @returns Wallet button configuration
+ */
+function createWalletButton(connector: Connector, config: WalletConfig): WalletButtonConfig {
+	return {
+		connector,
+		label: config.label,
+		icon: config.icon,
+		variant: config.isPrimary ? 'default' : 'outline',
+		className: config.isPrimary ? BUTTON_STYLES.PRIMARY : BUTTON_STYLES.OUTLINE,
+	};
+}
+
+/**
  * Creates wallet button configurations from organized connectors
  *
  * @param organized - Organized connectors
  * @returns Array of wallet button configurations
  */
 function createWalletButtons(organized: OrganizedConnectors): WalletButtonConfig[] {
-	const buttons: WalletButtonConfig[] = [];
+	// Process standard wallets from configuration
+	const buttons = WALLET_CONFIGS.map((config) => {
+		const connector = organized[config.key] as Connector | undefined;
+		return connector ? createWalletButton(connector, config) : null;
+	}).filter((button): button is WalletButtonConfig => button !== null);
 
-	// Family Wallet - Primary CTA
-	if (organized.family) {
-		buttons.push({
-			connector: organized.family,
-			label: 'Continue with Family',
-			icon: WALLET_ICONS.FAMILY,
-			variant: 'default',
-			className: BUTTON_STYLES.PRIMARY,
-		});
-	}
-
-	// MetaMask
-	if (organized.metamask) {
-		buttons.push({
-			connector: organized.metamask,
-			label: 'MetaMask',
-			icon: WALLET_ICONS.METAMASK,
-			variant: 'outline',
-			className: BUTTON_STYLES.OUTLINE,
-		});
-	}
-
-	// Coinbase Wallet
-	if (organized.coinbase) {
-		buttons.push({
-			connector: organized.coinbase,
-			label: 'Coinbase Wallet',
-			icon: WALLET_ICONS.COINBASE,
-			variant: 'outline',
-			className: BUTTON_STYLES.OUTLINE,
-		});
-	}
-
-	// Other Wallets (WalletConnect or grouped)
+	// Handle "Other Wallets" separately (special fallback logic)
 	const otherConnector = organized.walletConnect || organized.other[0];
 	if (otherConnector) {
-		buttons.push({
-			connector: otherConnector,
-			label: 'Other Wallets',
-			icon: WALLET_ICONS.WALLET_CONNECT,
-			variant: 'outline',
-			className: BUTTON_STYLES.OUTLINE,
-		});
+		buttons.push(
+			createWalletButton(otherConnector, {
+				key: 'walletConnect',
+				label: 'Other Wallets',
+				icon: WALLET_ICONS.WALLET_CONNECT,
+			})
+		);
 	}
 
 	return buttons;
