@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
 import { type Address, parseUnits } from 'viem';
 import { type TokenConfig } from '../config/tokens';
@@ -26,7 +26,7 @@ interface ATokenBalance {
 export function useATokenBalances() {
 	const { address } = useAccount();
 	const { tokens: userTokens, isLoading: isLoadingUserTokens } = useUserTokensContext();
-	const { isDepositing, depositingTokenSymbol, depositingAmount } = useDepositContext();
+	const { depositingTokenSymbol, depositingAmount } = useDepositContext();
 
 	// Create contract calls for all aToken balances
 	const contracts = useMemo(
@@ -71,9 +71,12 @@ export function useATokenBalances() {
 		[userTokens, data]
 	);
 
-	// Create optimistic position for token being deposited (only for NEW tokens with zero balance)
-	const optimisticPosition = useMemo((): ATokenBalance | null => {
-		if (!isDepositing || !depositingTokenSymbol || !depositingAmount) return null;
+	// Store the last optimistic position to prevent flicker between transaction completion and data refetch
+	const lastOptimisticPosition = useRef<ATokenBalance | null>(null);
+
+	// Create or update optimistic position
+	const currentOptimisticPosition = useMemo((): ATokenBalance | null => {
+		if (!depositingTokenSymbol || !depositingAmount) return null;
 
 		// Find the token being deposited and its index
 		const depositingTokenIndex = userTokens.findIndex((t) => t.symbol === depositingTokenSymbol);
@@ -82,11 +85,11 @@ export function useATokenBalances() {
 		const depositingToken = userTokens[depositingTokenIndex];
 		if (!depositingToken) return null;
 
-		// Check if this token already has a balance (not a new position)
-		// Use data directly to avoid circular dependency with balances
+		// Check current balance from data
 		const existingResult = data?.[depositingTokenIndex];
 		const existingBalance = (existingResult?.status === 'success' ? existingResult.result : 0n) as bigint;
-		// Only show optimistic update for tokens with zero balance (new positions)
+
+		// If real balance already exists, don't show optimistic
 		if (existingBalance > 0n) return null;
 
 		// Parse the depositing amount
@@ -105,18 +108,54 @@ export function useATokenBalances() {
 		} catch {
 			return null; // Invalid amount
 		}
-	}, [isDepositing, depositingTokenSymbol, depositingAmount, userTokens, data]);
+	}, [depositingTokenSymbol, depositingAmount, userTokens, data]);
+
+	// Update lastOptimisticPosition when we have a new optimistic position
+	useEffect(() => {
+		if (currentOptimisticPosition) {
+			lastOptimisticPosition.current = currentOptimisticPosition;
+		}
+	}, [currentOptimisticPosition]);
+
+	// Clear lastOptimisticPosition when real data arrives for that token
+	useEffect(() => {
+		if (lastOptimisticPosition.current && data) {
+			const tokenIndex = userTokens.findIndex(
+				(t) => t.symbol === lastOptimisticPosition.current?.token.symbol
+			);
+			if (tokenIndex !== -1) {
+				const result = data[tokenIndex];
+				const balance = (result?.status === 'success' ? result.result : 0n) as bigint;
+				// If real balance now exists, clear the optimistic position
+				if (balance > 0n) {
+					lastOptimisticPosition.current = null;
+				}
+			}
+		}
+	}, [data, userTokens]);
+
+	// Use current optimistic or fallback to last optimistic (prevents flicker)
+	const optimisticPosition = currentOptimisticPosition || lastOptimisticPosition.current;
 
 	// Filter positions with meaningful balance
 	// Exclude tokens with dust amounts (raw > 0 but formatted as "0")
-	const basePositions = balances.filter((b) => b.raw > 0n && b.formatted !== '0');
+	// Memoized to prevent unnecessary recalculations and table flickering
+	const basePositions = useMemo(
+		() => balances.filter((b) => b.raw > 0n && b.formatted !== '0'),
+		[balances]
+	);
 
-	// Add optimistic position and sort by symbol for stable order
+	// Add optimistic position without sorting to prevent flickering
 	const positions = useMemo(() => {
-		const allPositions = optimisticPosition ? [optimisticPosition, ...basePositions] : basePositions;
-
-		// Sort alphabetically by token symbol for consistent ordering
-		return allPositions.sort((a, b) => a.token.symbol.localeCompare(b.token.symbol));
+		if (optimisticPosition) {
+			// Remove any existing position for the same token to prevent duplicates
+			const filteredBase = basePositions.filter(
+				(p) => p.token.symbol !== optimisticPosition.token.symbol
+			);
+			// Add optimistic position at the end to maintain stable order
+			return [...filteredBase, optimisticPosition];
+		}
+		return basePositions;
 	}, [optimisticPosition, basePositions]);
 
 	// Determine loading state to prevent showing empty states prematurely

@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useMemo, useCallback, useImperativeHandle } from 'react';
+import { parseUnits } from 'viem';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -111,12 +112,23 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 	// Sync debounced amount to flow
 	useEffect(() => {
 		flow.setAmount(debouncedAmount);
-		// Reset isMaxWithdraw flag for withdraw mode
-		if (mode === 'withdraw' && debouncedAmount !== balanceFormatted) {
-			withdrawFlow.setIsMaxWithdraw(false);
+		// Reset isMaxWithdraw flag for withdraw mode ONLY if user manually changed amount
+		// Don't reset if it's empty or if amounts are very close (floating point rounding)
+		if (mode === 'withdraw' && debouncedAmount !== '') {
+			try {
+				const debouncedBigInt = parseUnits(debouncedAmount, safeToken.decimals);
+				const balanceBigInt = parseUnits(balanceFormatted || '0', safeToken.decimals);
+				// Only reset if amounts are significantly different (not just formatting)
+				if (debouncedBigInt !== balanceBigInt) {
+					withdrawFlow.setIsMaxWithdraw(false);
+				}
+			} catch {
+				// Invalid amount, reset flag
+				withdrawFlow.setIsMaxWithdraw(false);
+			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [debouncedAmount, flow.setAmount, mode, balanceFormatted, withdrawFlow]);
+	}, [debouncedAmount, flow.setAmount, mode, balanceFormatted, withdrawFlow, safeToken.decimals]);
 
 	// Reset local amount after successful operation
 	useEffect(() => {
@@ -128,9 +140,9 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 
 	const handleMaxClick = () => {
 		handleMaxClickForm(balanceFormatted, flow.setAmount);
-		// Mark as MAX withdrawal if withdraw mode
+		// Mark as MAX withdrawal if withdraw mode - do this immediately to prevent validation flicker
 		if (mode === 'withdraw') {
-			withdrawFlow.handleMaxClick();
+			withdrawFlow.setIsMaxWithdraw(true);
 		}
 	};
 

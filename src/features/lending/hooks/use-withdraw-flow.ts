@@ -7,15 +7,41 @@ import { useDepositContext } from '../context/DepositContext';
 import { useAmountValidation } from '@/shared/hooks/use-amount-validation';
 import { useRefetchOnSuccess } from './use-refetch-on-success';
 import { useUserTokensContext } from '@/features/tokens/context/UserTokensContext';
+import { useTransactionToast } from '@/shared/hooks/use-transaction-toast';
 
 export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddress?: Address) {
 	const [amount, setAmount] = useState('');
 	const [isMaxWithdraw, setIsMaxWithdraw] = useState(false);
 	const queryClient = useQueryClient();
-	const { startWithdrawing, completeTransaction } = useDepositContext();
+	const { startWithdrawing, completeTransaction, refetchBalances } = useDepositContext();
 	const { refetch: refetchUserTokens } = useUserTokensContext();
 
 	const withdraw = useWithdraw(token);
+
+	// Show transaction toast notifications
+	useTransactionToast(
+		withdraw.hash,
+		withdraw.isPending,
+		withdraw.isSuccess,
+		withdraw.error,
+		{
+			pending: 'Confirming withdrawal...',
+			success: `Withdrawn ${token.symbol} successfully!`,
+			error: 'Withdrawal failed'
+		},
+		`withdraw-${token.symbol}`
+	);
+
+	// Refetch balances immediately after successful withdrawal
+	// Then complete transaction AFTER refetch to prevent flickering
+	useEffect(() => {
+		if (withdraw.isSuccess && refetchBalances) {
+			refetchBalances();
+			// Complete transaction after refetch to prevent double flicker
+			// The refetch will update the positions, then we clear the context
+			completeTransaction();
+		}
+	}, [withdraw.isSuccess, refetchBalances, completeTransaction]);
 
 	const isValidAmount = useAmountValidation(amount, balance, token.decimals);
 
@@ -23,10 +49,6 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 		if (!amount || !isValidAmount) return;
 		await withdraw.withdraw(amount, isMaxWithdraw);
 	}, [amount, withdraw, isValidAmount, isMaxWithdraw]);
-
-	const handleMaxClick = useCallback(() => {
-		setIsMaxWithdraw(true);
-	}, []);
 
 	const clearForm = useCallback(() => {
 		setAmount('');
@@ -54,9 +76,9 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	useEffect(() => {
 		if (withdraw.isPending) {
 			startWithdrawing(token.symbol);
-		} else {
-			completeTransaction();
 		}
+		// Only start withdrawing, don't complete here
+		// Completion happens in the refetch effect above
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [withdraw.isPending, token.symbol]);
 
@@ -67,7 +89,6 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 		aTokenAddress,
 		isValidAmount,
 		handleWithdraw,
-		handleMaxClick,
 		setIsMaxWithdraw,
 		isWithdrawing: withdraw.isPending,
 		withdrawTxHash: withdraw.hash,
