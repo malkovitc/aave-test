@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useDeposit } from './use-deposit';
 import { useSupplyWithPermit } from './use-supply-with-permit';
 import { useTransactionManager } from '@/shared/hooks/use-transaction-manager';
 import { useWagmiTransactionSync } from '@/shared/hooks/use-wagmi-transaction-sync';
+import { useDepositContext } from '../context/DepositContext';
 
 /**
  * Abstraction over deposit methods (permit vs traditional)
@@ -14,6 +15,8 @@ import { useWagmiTransactionSync } from '@/shared/hooks/use-wagmi-transaction-sy
 export function useDepositMethod(token: TokenConfig) {
 	const traditionalDeposit = useDeposit(token);
 	const permitDeposit = useSupplyWithPermit(token);
+	const { refetchBalances } = useDepositContext();
+	const hasRefetchedRef = useRef(false);
 
 	const usesPermit = token.supportsPermit;
 
@@ -33,6 +36,16 @@ export function useDepositMethod(token: TokenConfig) {
 		token.symbol,
 		'deposit'
 	);
+
+	useEffect(() => {
+		if (isSuccess && !hasRefetchedRef.current && refetchBalances) {
+			hasRefetchedRef.current = true;
+			refetchBalances();
+		}
+		if (!isSuccess) {
+			hasRefetchedRef.current = false;
+		}
+	}, [isSuccess, refetchBalances]);
 
 	return useMemo(() => {
 		return {

@@ -12,8 +12,6 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 
 	const invalidateQueries = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
 	}, [queryClient]);
 
 	const refetchCallbacks = useMemo(
@@ -22,6 +20,16 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 	);
 
 	useRefetchOnSuccess(depositMethod.isSuccess, refetchCallbacks);
+
+	// Refetch user-tokens after deposit success with delay to avoid table flicker
+	// Longer delay (1500ms) ensures aToken data is fully loaded before token list updates
+	useEffect(() => {
+		if (depositMethod.isSuccess) {
+			setTimeout(() => {
+				queryClient.refetchQueries({ queryKey: ['user-tokens'] });
+			}, 1500);
+		}
+	}, [depositMethod.isSuccess, queryClient]);
 
 	const handleDeposit = useCallback(async (amount: string) => {
 		if (!amount) return;

@@ -12,7 +12,7 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	const [amount, setAmount] = useState('');
 	const [isMaxWithdraw, setIsMaxWithdraw] = useState(false);
 	const queryClient = useQueryClient();
-	const { startWithdrawing, completeTransaction } = useDepositContext();
+	const { startWithdrawing, completeTransaction, refetchBalances } = useDepositContext();
 
 	const withdraw = useWithdraw(token);
 
@@ -32,8 +32,6 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 
 	const invalidateQueries = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
 	}, [queryClient]);
 
 	useEffect(() => {
@@ -41,9 +39,17 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 			setAmount('');
 			setIsMaxWithdraw(false);
 			invalidateQueries();
+			refetchBalances?.();
+
+			// Refetch user-tokens after a delay to avoid table flicker
+			// Longer delay (1500ms) ensures aToken data is fully loaded before token list updates
+			setTimeout(() => {
+				queryClient.refetchQueries({ queryKey: ['user-tokens'] });
+			}, 1500);
+
 			completeTransaction();
 		}
-	}, [isSuccess, invalidateQueries, completeTransaction]);
+	}, [isSuccess, invalidateQueries, refetchBalances, completeTransaction, queryClient]);
 
 	const isAmountValid = useAmountValidation(amount, balance, token.decimals);
 	const isValidAmount = isMaxWithdraw ? amount !== '' : isAmountValid;

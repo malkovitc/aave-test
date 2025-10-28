@@ -60,6 +60,7 @@ export function useATokenBalances() {
 			refetchInterval: BALANCE_REFETCH_INTERVAL_MS,
 			staleTime: 0, // Always consider data stale to ensure fresh reads after deposits
 			placeholderData: (previousData) => previousData, // Keep previous data during refetch to prevent flickering
+			structuralSharing: false, // Disable structural sharing to prevent data loss when contracts change
 		},
 	});
 
