@@ -5,7 +5,6 @@ import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useWithdraw } from './use-withdraw';
 import { useDepositContext } from '../context/DepositContext';
 import { useAmountValidation } from '@/shared/hooks/use-amount-validation';
-import { useUserTokensContext } from '@/features/tokens/context/UserTokensContext';
 import { useTransactionManager } from '@/shared/hooks/use-transaction-manager';
 import { useWagmiTransactionSync } from '@/shared/hooks/use-wagmi-transaction-sync';
 
@@ -13,8 +12,7 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	const [amount, setAmount] = useState('');
 	const [isMaxWithdraw, setIsMaxWithdraw] = useState(false);
 	const queryClient = useQueryClient();
-	const { startWithdrawing, completeTransaction, refetchBalances } = useDepositContext();
-	const { refetch: refetchUserTokens } = useUserTokensContext();
+	const { startWithdrawing, completeTransaction } = useDepositContext();
 
 	const withdraw = useWithdraw(token);
 
@@ -43,11 +41,9 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 			setAmount('');
 			setIsMaxWithdraw(false);
 			invalidateQueries();
-			refetchUserTokens();
-			refetchBalances?.();
 			completeTransaction();
 		}
-	}, [isSuccess, invalidateQueries, refetchUserTokens, refetchBalances, completeTransaction]);
+	}, [isSuccess, invalidateQueries, completeTransaction]);
 
 	const isAmountValid = useAmountValidation(amount, balance, token.decimals);
 	const isValidAmount = isMaxWithdraw ? amount !== '' : isAmountValid;

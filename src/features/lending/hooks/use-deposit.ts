@@ -22,27 +22,23 @@ export function useDeposit(token: TokenConfig) {
 		let poolAddress: Address;
 		try {
 			({ poolAddress } = getChainConfig(chainId));
-		} catch (configError) {
+		} catch {
 			throw new Error('Unsupported chain for deposit');
 		}
 
-		try {
-			const result = await writeContractAsync({
-				address: poolAddress,
-				abi: aavePoolAbi,
-				functionName: 'supply',
-				args: [
-					token.address,
-					amountBigInt,
-					userAddress,
-					0,
-				],
-				gas: 500000n,
-			});
-			return result;
-		} catch (err) {
-			throw err;
-		}
+		const result = await writeContractAsync({
+			address: poolAddress,
+			abi: aavePoolAbi,
+			functionName: 'supply',
+			args: [
+				token.address,
+				amountBigInt,
+				userAddress,
+				0,
+			],
+			gas: 500000n,
+		});
+		return result;
 	};
 
 	return {

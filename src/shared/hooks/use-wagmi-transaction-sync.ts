@@ -63,6 +63,7 @@ export function useWagmiTransactionSync(
 		handleTransactionLifecycle(tokenSymbol, type, wagmiState, changes);
 
 		prevState.current = { hash, isPending, isSuccess, error };
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [hash, isPending, isSuccess, error, tokenSymbol, type]);
 }
 

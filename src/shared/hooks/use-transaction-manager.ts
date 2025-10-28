@@ -53,11 +53,9 @@ export function useTransactionManager(
 	// Get transaction for this token+type
 	const transaction = transactionManager.getTransaction(tokenSymbol, type);
 
-	// Memoize derived state to prevent unnecessary re-renders
-	// Note: We depend on transaction.status and transaction.error because
-	// these properties are mutated in-place by TransactionManager
 	return useMemo(
 		() => deriveTransactionState(transaction),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[transaction, transaction?.status, transaction?.error, transaction?.hash]
 	);
 }

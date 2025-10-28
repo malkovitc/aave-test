@@ -1,8 +1,7 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useDeposit } from './use-deposit';
 import { useSupplyWithPermit } from './use-supply-with-permit';
-import { useDepositContext } from '../context/DepositContext';
 import { useTransactionManager } from '@/shared/hooks/use-transaction-manager';
 import { useWagmiTransactionSync } from '@/shared/hooks/use-wagmi-transaction-sync';
 
@@ -15,14 +14,13 @@ import { useWagmiTransactionSync } from '@/shared/hooks/use-wagmi-transaction-sy
 export function useDepositMethod(token: TokenConfig) {
 	const traditionalDeposit = useDeposit(token);
 	const permitDeposit = useSupplyWithPermit(token);
-	const { refetchBalances } = useDepositContext();
 
 	const usesPermit = token.supportsPermit;
 
 	// Get raw Wagmi state
 	const wagmiState = useMemo(() => ({
 		hash: usesPermit ? permitDeposit.hash : traditionalDeposit.hash,
-		isPending: usesPermit ? permitDeposit.isPending : traditionalDeposit.isPending,
+		isPending: usesPermit ? !!permitDeposit.isPending : !!traditionalDeposit.isPending,
 		isSuccess: usesPermit ? permitDeposit.isSuccess : traditionalDeposit.isSuccess,
 		error: usesPermit ? permitDeposit.error : traditionalDeposit.error,
 	}), [usesPermit, permitDeposit, traditionalDeposit]);
@@ -36,13 +34,6 @@ export function useDepositMethod(token: TokenConfig) {
 		'deposit'
 	);
 
-	// Refetch balances immediately after successful deposit
-	useEffect(() => {
-		if (isSuccess && refetchBalances) {
-			refetchBalances();
-		}
-	}, [isSuccess, refetchBalances]);
-
 	return useMemo(() => {
 		return {
 			deposit: usesPermit ? permitDeposit.supplyWithPermit : traditionalDeposit.deposit,
@@ -50,7 +41,7 @@ export function useDepositMethod(token: TokenConfig) {
 			isSuccess,
 			hash,
 			error,
-			hasValidError: isError, // TransactionManager handles all filtering
+			hasValidError: isError,
 			usesPermit,
 		};
 	}, [usesPermit, permitDeposit, traditionalDeposit, isPending, isSuccess, hash, error, isError]);

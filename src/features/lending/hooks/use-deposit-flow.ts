@@ -8,12 +8,13 @@ import { useDepositTransaction } from './deposit/use-deposit-transaction';
 export function useDepositFlow(token: TokenConfig, balance: string) {
 	const [hasTriggeredAutoDeposit, setHasTriggeredAutoDeposit] = useState(false);
 	const previousTokenSymbol = useRef(token.symbol);
+	const lastProcessedApproveHash = useRef<string | undefined>();
 
 	const amountHook = useDepositAmount(token, balance);
 	const transactionHook = useDepositTransaction(token, amountHook.clearAmount);
 	const approvalHook = useDepositApproval(token, amountHook.amount, transactionHook.usesPermit);
 
-	const { isApproveSuccess, refetchAllowances } = approvalHook;
+	const { isApproveSuccess, approveTxHash, refetchAllowances } = approvalHook;
 	const { handleDeposit: depositFn } = transactionHook;
 	const { isValid: isValidAmount, amount } = amountHook;
 
@@ -25,7 +26,10 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 	}, [refetchAllowances, isValidAmount, amount, depositFn]);
 
 	useEffect(() => {
-		if (isApproveSuccess && !hasTriggeredAutoDeposit) {
+		const isNewApproval = approveTxHash && approveTxHash !== lastProcessedApproveHash.current;
+
+		if (isApproveSuccess && isNewApproval && !hasTriggeredAutoDeposit) {
+			lastProcessedApproveHash.current = approveTxHash;
 			setHasTriggeredAutoDeposit(true);
 			triggerAutoDeposit();
 		}
@@ -33,13 +37,14 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 		if (!isApproveSuccess && hasTriggeredAutoDeposit) {
 			setHasTriggeredAutoDeposit(false);
 		}
-	}, [isApproveSuccess, hasTriggeredAutoDeposit, triggerAutoDeposit]);
+	}, [isApproveSuccess, approveTxHash, hasTriggeredAutoDeposit, triggerAutoDeposit]);
 
 	const { setAmount } = amountHook;
 
 	useEffect(() => {
 		if (previousTokenSymbol.current !== token.symbol) {
 			previousTokenSymbol.current = token.symbol;
+			lastProcessedApproveHash.current = undefined;
 			setAmount('');
 			setHasTriggeredAutoDeposit(false);
 		}

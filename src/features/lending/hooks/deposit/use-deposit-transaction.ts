@@ -3,14 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useDepositMethod } from '../use-deposit-method';
 import { useRefetchOnSuccess } from '../use-refetch-on-success';
-import { useUserTokensContext } from '@/features/tokens/context/UserTokensContext';
 
 export function useDepositTransaction(token: TokenConfig, clearAmount: () => void) {
 	const depositMethod = useDepositMethod(token);
 	const [localError, setLocalError] = useState<Error | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const queryClient = useQueryClient();
-	const { refetch: refetchUserTokens } = useUserTokensContext();
 
 	const invalidateQueries = useCallback(() => {
 		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
@@ -19,8 +17,8 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 	}, [queryClient]);
 
 	const refetchCallbacks = useMemo(
-		() => [clearAmount, invalidateQueries, refetchUserTokens],
-		[clearAmount, invalidateQueries, refetchUserTokens]
+		() => [clearAmount, invalidateQueries],
+		[clearAmount, invalidateQueries]
 	);
 
 	useRefetchOnSuccess(depositMethod.isSuccess, refetchCallbacks);

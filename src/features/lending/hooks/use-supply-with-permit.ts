@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { parseUnits, type Address } from 'viem';
+import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
