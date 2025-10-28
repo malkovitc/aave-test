@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useCallback, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useCallback, useImperativeHandle } from 'react';
 import { parseUnits } from 'viem';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Button } from '@/shared/ui/button';
@@ -12,7 +12,7 @@ import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
 import { useTokenForm } from '../hooks/use-token-form';
 import { useWallet } from '@/features/wallet/hooks/use-wallet';
 import { useDepositContext } from '../context/DepositContext';
-import { useAmountValidation } from '@/shared/hooks/use-amount-validation';
+import { useFormState } from '../hooks/use-form-state';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@/shared/ui/skeleton';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
@@ -41,28 +41,6 @@ function getTokenBalanceFormatted(token: TokenConfig | null): string {
 		return (token as DiscoveredToken).balanceFormatted;
 	}
 	return '0';
-}
-
-function getActionLabel(
-	mode: 'deposit' | 'withdraw',
-	{
-		needsApproval,
-		isApproving,
-		isProcessing,
-	}: {
-		needsApproval?: boolean;
-		isApproving?: boolean;
-		isProcessing: boolean;
-	}
-) {
-	if (mode === 'deposit') {
-		if (isApproving) return 'Approving...';
-		if (isProcessing) return 'Depositing...';
-		if (needsApproval) return 'Approve';
-		return 'Deposit';
-	} else {
-		return isProcessing ? 'Withdrawing...' : 'Withdraw';
-	}
 }
 
 /**
@@ -146,60 +124,28 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 		}
 	};
 
-	// Local validation
-	const isLocallyValid = useAmountValidation(debouncedAmount, balanceFormatted, safeToken.decimals);
+	// All form state logic consolidated in one hook
+	const formState = useFormState({
+		mode,
+		isConnected,
+		isWrongNetwork,
+		tokens,
+		selectedToken,
+		localAmount,
+		debouncedAmount,
+		balanceFormatted,
+		safeToken,
+		depositFlow,
+		withdrawFlow,
+	});
 
-	// Validation state (for aria-invalid and error display)
-	const showValidationError = useMemo(() => {
-		if (mode === 'deposit') {
-			return debouncedAmount !== '' && !isLocallyValid;
-		}
-		return localAmount !== '' && localAmount === debouncedAmount && !flow.isValidAmount;
-	}, [mode, debouncedAmount, isLocallyValid, localAmount, flow.isValidAmount]);
-
-	// Base disabled conditions (common for all inputs/buttons)
-	const hasBaseDisabledConditions = useMemo(() => {
-		return !isConnected || flow.isLoading || tokens.length === 0;
-	}, [isConnected, flow.isLoading, tokens.length]);
-
-	// Input disabled: base conditions + wrong network + no token selected
-	const isInputDisabled = useMemo(() => {
-		return hasBaseDisabledConditions || isWrongNetwork || !selectedToken;
-	}, [hasBaseDisabledConditions, isWrongNetwork, selectedToken]);
-
-	// Primary button disabled: base conditions + invalid amount
-	const isPrimaryButtonDisabled = useMemo(() => {
-		return hasBaseDisabledConditions || !flow.isValidAmount;
-	}, [hasBaseDisabledConditions, flow.isValidAmount]);
-
-	// Token lookup map for O(1) access (instead of O(n) find)
-	const tokensBySymbol = useMemo(() => {
-		return new Map(tokens.map((token) => [token.symbol, token]));
-	}, [tokens]);
-
-	// Handle token selection (memoized for performance)
+	// Handle token selection wrapper
 	const handleTokenSelect = useCallback((symbol: string) => {
-		const token = tokensBySymbol.get(symbol);
+		const token = formState.handleTokenSelect(symbol);
 		if (token) {
 			setSelectedToken(token);
 		}
-	}, [tokensBySymbol, setSelectedToken]);
-
-	// Button label logic
-	const buttonLabel = useMemo(() => {
-		if (mode === 'withdraw') {
-			return withdrawFlow.isWithdrawing ? 'Withdrawing...' : 'Withdraw';
-		}
-
-		if (localAmount !== debouncedAmount && localAmount !== '') {
-			return depositFlow.needsApproval ? 'Approve' : 'Deposit';
-		}
-		return getActionLabel(mode, {
-			needsApproval: depositFlow.needsApproval,
-			isApproving: depositFlow.isApproving,
-			isProcessing: depositFlow.isDepositing,
-		});
-	}, [mode, localAmount, debouncedAmount, depositFlow, withdrawFlow]);
+	}, [formState, setSelectedToken]);
 
 	const handlePrimaryAction = async () => {
 		if (!isConnected) return;
@@ -289,21 +235,21 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 							inputMode="decimal"
 							value={localAmount}
 							onChange={(e) => handleAmountChange(e.target.value)}
-							disabled={isInputDisabled}
-							aria-invalid={showValidationError}
-							aria-describedby={showValidationError ? `${config.inputId}-amount-error` : undefined}
+							disabled={formState.isInputDisabled}
+							aria-invalid={formState.showValidationError}
+							aria-describedby={formState.showValidationError ? `${config.inputId}-amount-error` : undefined}
 						/>
 						<Button
 							type="button"
 							variant="outline"
 							onClick={handleMaxClick}
-							disabled={isInputDisabled}
+							disabled={formState.isInputDisabled}
 						>
 							Max
 						</Button>
 					</div>
 					<div className="min-h-5">
-						{showValidationError && (
+						{formState.showValidationError && (
 							<ErrorText id={`${config.inputId}-amount-error`}>{ERROR_MESSAGES.INVALID_AMOUNT}</ErrorText>
 						)}
 					</div>
@@ -323,11 +269,11 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 				) : (
 					<Button
 						onClick={handlePrimaryAction}
-						disabled={isPrimaryButtonDisabled}
+						disabled={formState.isPrimaryButtonDisabled}
 						className="w-full"
 					>
 						{flow.isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-						{buttonLabel}
+						{formState.buttonLabel}
 					</Button>
 				)}
 			</CardContent>
