@@ -59,7 +59,7 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 							<TableBody>
 								{positions.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+										<TableCell colSpan={4} className="text-center py-8 text-muted-foreground h-[200px]">
 											No positions yet. Deposit tokens to start earning interest.
 										</TableCell>
 									</TableRow>
@@ -103,9 +103,6 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 												</TableCell>
 												<TableCell className="text-right">
 													<span className="text-foreground">{formatted}</span>
-													{isOptimistic && (
-														<span className="ml-1 text-xs text-muted-foreground">(pending)</span>
-													)}
 												</TableCell>
 												<TableCell className="text-right">
 													<Button

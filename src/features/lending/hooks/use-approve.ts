@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { erc20Abi, parseUnits, type Address } from 'viem';
-import { toast } from 'sonner';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
+import { useTransactionToast } from '@/shared/hooks/use-transaction-toast';
 
 export function useApprove(token: TokenConfig) {
 	const { writeContract, data: hash, isPending, error } = useWriteContract();
@@ -10,6 +9,23 @@ export function useApprove(token: TokenConfig) {
 	const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
 		hash,
 	});
+
+	// Log state changes
+	console.log(`[useApprove ${token.symbol}] hash=${hash?.slice(0,8)}, isPending=${isPending}, isConfirming=${isConfirming}, isSuccess=${isSuccess}, error=${!!error}`);
+
+	// Show transaction toast notifications
+	useTransactionToast(
+		hash,
+		isPending || isConfirming,
+		isSuccess,
+		!!error,
+		{
+			pending: 'Approving token...',
+			success: 'Token approved successfully!',
+			error: 'Approval failed'
+		},
+		`approve-${token.symbol}`
+	);
 
 	const approve = async (spender: Address, amount: string) => {
 		try {
@@ -21,24 +37,10 @@ export function useApprove(token: TokenConfig) {
 				functionName: 'approve',
 				args: [spender, amountBigInt],
 			});
-
-			toast.loading('Approving token...', { id: 'approve' });
 		} catch (err) {
 			console.error('🔴 Approve error:', err);
-			toast.error('Failed to approve token', { id: 'approve' });
 		}
 	};
-
-	useEffect(() => {
-		if (!isSuccess) return;
-		toast.success('Token approved successfully!', { id: 'approve' });
-	}, [isSuccess, hash]);
-
-	useEffect(() => {
-		if (!error) return;
-		console.error('❌ Approve FAILED:', error);
-		toast.error('Approval failed', { id: 'approve' });
-	}, [error]);
 
 	return {
 		approve,

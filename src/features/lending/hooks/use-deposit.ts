@@ -1,6 +1,5 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
-import { toast } from 'sonner';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
 import aavePoolAbi from '../abis/AavePool.json';
@@ -12,6 +11,9 @@ export function useDeposit(token: TokenConfig) {
 	const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
 		hash,
 	});
+
+	// Log state changes
+	console.log(`[useDeposit ${token.symbol}] hash=${hash?.slice(0,8)}, isPending=${isPending}, isConfirming=${isConfirming}, isSuccess=${isSuccess}, error=${!!error}`);
 
 	const deposit = async (amount: string) => {
 		if (!userAddress || !chainId) {
@@ -42,9 +44,6 @@ export function useDeposit(token: TokenConfig) {
 				],
 				gas: 500000n,
 			});
-
-			// Show immediate feedback to user
-			toast.loading('Please confirm transaction in wallet...', { id: `deposit-${token.symbol}` });
 		} catch (err) {
 			console.error('🔴 Deposit error:', err);
 		}

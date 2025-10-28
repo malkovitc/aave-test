@@ -1,6 +1,5 @@
 import { useAccount, useWriteContract } from 'wagmi';
 import { parseUnits, Address, maxUint256 } from 'viem';
-import { toast } from 'sonner';
 import { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
 import aavePoolAbi from '../abis/AavePool.json';
@@ -37,9 +36,6 @@ export function useWithdraw(token: TokenConfig) {
 				functionName: 'withdraw',
 				args: [token.address, amountBigInt, userAddress],
 			});
-
-			// Show immediate feedback to user
-			toast.loading('Please confirm transaction in wallet...', { id: `withdraw-${token.symbol}` });
 		} catch (err) {
 			console.error('🔴 Withdraw error:', err);
 		}

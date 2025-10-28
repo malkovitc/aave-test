@@ -23,7 +23,7 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 		withdraw.hash,
 		withdraw.isPending,
 		withdraw.isSuccess,
-		withdraw.error,
+		!!withdraw.error,
 		{
 			pending: 'Confirming withdrawal...',
 			success: `Withdrawn ${token.symbol} successfully!`,
