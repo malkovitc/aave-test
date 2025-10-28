@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { parseUnits, Address, maxUint256 } from 'viem';
 import { toast } from 'sonner';
@@ -15,6 +15,10 @@ export function useWithdraw(token: TokenConfig) {
 
 	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
 		useTransactionMonitor(hash);
+
+	// Track which token initiated the transaction to prevent showing toasts for wrong tokens
+	const transactionTokenSymbol = useRef<string | null>(null);
+	const shouldShowToasts = hash === undefined || transactionTokenSymbol.current === token.symbol;
 
 	// Create unique toast ID for this token to prevent cross-token toast interference
 	const toastId = `withdraw-${token.symbol}`;
@@ -38,6 +42,9 @@ export function useWithdraw(token: TokenConfig) {
 			// If max, use maxUint256 to withdraw all
 			const amountBigInt = isMax ? maxUint256 : parseUnits(amount, token.decimals);
 
+			// Track which token initiated this transaction
+			transactionTokenSymbol.current = token.symbol;
+
 			writeContract({
 				address: poolAddress,
 				abi: aavePoolAbi,
@@ -53,8 +60,8 @@ export function useWithdraw(token: TokenConfig) {
 	};
 
 	useEffect(() => {
-		// Early return if no transaction hash
-		if (!hash) return;
+		// Early return if no transaction hash or showing toasts for wrong token
+		if (!hash || !shouldShowToasts) return;
 
 		// Show confirming toast when transaction is being mined
 		if (isConfirming && !isSuccess) {
@@ -74,18 +81,12 @@ export function useWithdraw(token: TokenConfig) {
 		// Handle failure - only if not successful
 		const hasFailed = txError || receiptStatus === 'error';
 		if (hasFailed && !isSuccess) {
-			console.error('❌ Withdraw FAILED:', {
-				error: txError,
-				receiptStatus,
-				isSuccess,
-				manualReceiptError,
-			});
-
 			const errorMessage = 'Transaction failed. Check block explorer for details.';
 			toast.error(errorMessage, { id: toastId });
 		}
 	}, [
 		hash,
+		shouldShowToasts,
 		isPending,
 		isConfirming,
 		isSuccess,

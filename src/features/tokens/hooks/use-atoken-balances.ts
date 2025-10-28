@@ -71,8 +71,7 @@ export function useATokenBalances() {
 		[userTokens, data]
 	);
 
-	// Create optimistic position for token being deposited (if it's a new token)
-	// Note: We check data directly instead of balances to avoid circular dependency
+	// Create optimistic position for token being deposited (only for NEW tokens with zero balance)
 	const optimisticPosition = useMemo((): ATokenBalance | null => {
 		if (!isDepositing || !depositingTokenSymbol || !depositingAmount) return null;
 
@@ -81,14 +80,14 @@ export function useATokenBalances() {
 		if (depositingTokenIndex === -1) return null;
 
 		const depositingToken = userTokens[depositingTokenIndex];
-		// Safety check - if token not found, skip optimistic update
 		if (!depositingToken) return null;
 
 		// Check if this token already has a balance (not a new position)
-		// Use data directly to avoid depending on balances
+		// Use data directly to avoid circular dependency with balances
 		const existingResult = data?.[depositingTokenIndex];
 		const existingBalance = (existingResult?.status === 'success' ? existingResult.result : 0n) as bigint;
-		if (existingBalance > 0n) return null; // Already exists, no need for optimistic update
+		// Only show optimistic update for tokens with zero balance (new positions)
+		if (existingBalance > 0n) return null;
 
 		// Parse the depositing amount
 		try {
