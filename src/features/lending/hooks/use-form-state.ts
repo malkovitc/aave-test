@@ -51,13 +51,10 @@ export function useFormState(params: FormStateParams) {
 
 	// Validation state (for aria-invalid and error display)
 	const showValidationError = useMemo(() => {
-		// Only show error if user has interacted with THIS specific input
-		if (localAmount === '') return false;
-
 		if (mode === 'deposit') {
 			return debouncedAmount !== '' && !isLocallyValid;
 		}
-		return localAmount === debouncedAmount && !flow.isValidAmount;
+		return localAmount !== '' && localAmount === debouncedAmount && !flow.isValidAmount;
 	}, [mode, debouncedAmount, isLocallyValid, localAmount, flow.isValidAmount]);
 
 	// Base disabled conditions (common for all inputs/buttons)

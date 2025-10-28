@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { type Address } from 'viem';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
@@ -44,7 +44,12 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 		}
 	}, [withdraw.isSuccess, refetchBalances, completeTransaction]);
 
-	const isValidAmount = useAmountValidation(amount, balance, token.decimals);
+	// For max withdraw, amount is always valid because we use maxUint256 in the contract call
+	// For normal withdraw, validate that amount <= balance
+	const isValidAmount = useMemo(() => {
+		if (isMaxWithdraw) return amount !== ''; // Just check amount is not empty
+		return useAmountValidation(amount, balance, token.decimals);
+	}, [isMaxWithdraw, amount, balance, token.decimals]);
 
 	const handleWithdraw = useCallback(async () => {
 		if (!amount || !isValidAmount) return;
