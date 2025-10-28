@@ -307,9 +307,11 @@ export const TokenFormCard = forwardRef<TokenFormCardRef, TokenFormCardProps>(({
 							<ErrorText id={`${config.inputId}-amount-error`}>{ERROR_MESSAGES.INVALID_AMOUNT}</ErrorText>
 						)}
 					</div>
-					<SecondaryText>
-						{config.balanceLabel}: {config.balanceValue} {config.balanceSymbol}
-					</SecondaryText>
+					{mode === 'withdraw' && (
+						<SecondaryText>
+							{config.balanceLabel}: {config.balanceValue} {config.balanceSymbol}
+						</SecondaryText>
+					)}
 				</div>
 
 				{isWrongNetwork && <ErrorText>{config.errorMessage}</ErrorText>}
