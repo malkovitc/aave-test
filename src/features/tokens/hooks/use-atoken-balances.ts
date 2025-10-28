@@ -131,8 +131,8 @@ export function useATokenBalances() {
 	const shouldShowLoading = hasAddress && (isLoadingInitialTokens || isWaitingForBalanceData || isLoading);
 
 	return {
-		balances,
-		positions,
+		balances: hasAddress ? balances : [],
+		positions: hasAddress ? positions : [],
 		isLoading: shouldShowLoading,
 		error,
 		refetch,
