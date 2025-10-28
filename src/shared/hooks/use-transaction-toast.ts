@@ -58,6 +58,7 @@ export function useTransactionToast(
 	// Reset flags when transaction hash changes (new transaction started)
 	useEffect(() => {
 		if (hash && hash !== currentHash.current) {
+			// New transaction started - reset all flags
 			currentHash.current = hash;
 			hasShownSuccess.current = false;
 			hasShownError.current = false;
@@ -65,6 +66,8 @@ export function useTransactionToast(
 		// Also clear currentHash when hash becomes undefined (transaction cleared)
 		if (!hash && currentHash.current) {
 			currentHash.current = undefined;
+			// Also reset error flag when hash clears to prevent showing old errors
+			hasShownError.current = false;
 		}
 	}, [hash]);
 
@@ -72,6 +75,10 @@ export function useTransactionToast(
 	useEffect(() => {
 		// No transaction in progress
 		if (!hash) return;
+
+		// Only show toasts for the current transaction hash
+		// This prevents showing old errors when a new transaction starts
+		if (hash !== currentHash.current) return;
 
 		// Pending state - transaction is being mined
 		if (isPending && !isSuccess && !error) {

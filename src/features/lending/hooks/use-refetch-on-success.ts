@@ -12,16 +12,14 @@ import { useEffect, useRef } from 'react';
  */
 export function useRefetchOnSuccess(isSuccess: boolean, callbacks: (() => void)[]) {
 	// Store callbacks in ref to avoid adding them to dependencies
-	const callbacksRef = useRef(callbacks);
+	const callbacksRef = useRef<(() => void)[]>(callbacks);
 
-	// Update ref when callbacks change
-	useEffect(() => {
-		callbacksRef.current = callbacks;
-	}, [callbacks]);
+	// Always keep ref in sync with latest callbacks
+	callbacksRef.current = callbacks;
 
 	// Execute callbacks when operation succeeds (only 1 dep!)
 	useEffect(() => {
-		if (isSuccess) {
+		if (isSuccess && callbacksRef.current) {
 			callbacksRef.current.forEach((callback) => callback());
 		}
 	}, [isSuccess]);

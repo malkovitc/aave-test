@@ -117,8 +117,17 @@ export function useATokenBalances() {
 		}
 	}, [currentOptimisticPosition]);
 
-	// Clear lastOptimisticPosition when real data arrives for that token
+	// Clear lastOptimisticPosition when:
+	// 1. Transaction completes and context is cleared (depositingTokenSymbol becomes null)
+	// 2. Real data arrives for that token
 	useEffect(() => {
+		// Clear when context is cleared (transaction completed or failed)
+		if (!depositingTokenSymbol && lastOptimisticPosition.current) {
+			lastOptimisticPosition.current = null;
+			return;
+		}
+
+		// Clear when real data arrives for that token
 		if (lastOptimisticPosition.current && data) {
 			const tokenIndex = userTokens.findIndex(
 				(t) => t.symbol === lastOptimisticPosition.current?.token.symbol
@@ -132,7 +141,7 @@ export function useATokenBalances() {
 				}
 			}
 		}
-	}, [data, userTokens]);
+	}, [depositingTokenSymbol, data, userTokens]);
 
 	// Use current optimistic or fallback to last optimistic (prevents flicker)
 	const optimisticPosition = currentOptimisticPosition || lastOptimisticPosition.current;

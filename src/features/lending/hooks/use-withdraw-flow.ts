@@ -1,11 +1,10 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { type Address } from 'viem';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useWithdraw } from './use-withdraw';
 import { useDepositContext } from '../context/DepositContext';
 import { useAmountValidation } from '@/shared/hooks/use-amount-validation';
-import { useRefetchOnSuccess } from './use-refetch-on-success';
 import { useUserTokensContext } from '@/features/tokens/context/UserTokensContext';
 import { useTransactionToast } from '@/shared/hooks/use-transaction-toast';
 
@@ -36,42 +35,41 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	// Refetch balances immediately after successful withdrawal
 	// Then complete transaction AFTER refetch to prevent flickering
 	useEffect(() => {
-		if (withdraw.isSuccess && refetchBalances) {
-			refetchBalances();
+		if (withdraw.isSuccess) {
+			// Clear form
+			setAmount('');
+			setIsMaxWithdraw(false);
+
+			// Invalidate queries
+			queryClient.invalidateQueries({ queryKey: ['token-balances'] });
+			queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
+			queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
+
+			// Refetch user tokens
+			refetchUserTokens();
+
+			// Refetch balances if available
+			if (refetchBalances) {
+				refetchBalances();
+			}
+
 			// Complete transaction after refetch to prevent double flicker
-			// The refetch will update the positions, then we clear the context
 			completeTransaction();
 		}
-	}, [withdraw.isSuccess, refetchBalances, completeTransaction]);
+	}, [withdraw.isSuccess, refetchBalances, completeTransaction, queryClient, refetchUserTokens]);
+
+	// Validate amount using the shared validation hook
+	const isAmountValid = useAmountValidation(amount, balance, token.decimals);
 
 	// For max withdraw, amount is always valid because we use maxUint256 in the contract call
 	// For normal withdraw, validate that amount <= balance
-	const isValidAmount = useMemo(() => {
-		if (isMaxWithdraw) return amount !== ''; // Just check amount is not empty
-		return useAmountValidation(amount, balance, token.decimals);
-	}, [isMaxWithdraw, amount, balance, token.decimals]);
+	const isValidAmount = isMaxWithdraw ? amount !== '' : isAmountValid;
 
 	const handleWithdraw = useCallback(async () => {
 		if (!amount || !isValidAmount) return;
 		await withdraw.withdraw(amount, isMaxWithdraw);
 	}, [amount, withdraw, isValidAmount, isMaxWithdraw]);
 
-	const clearForm = useCallback(() => {
-		setAmount('');
-		setIsMaxWithdraw(false);
-	}, []);
-
-	const invalidateQueries = useCallback(() => {
-		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
-	}, [queryClient]);
-
-	useRefetchOnSuccess(withdraw.isSuccess, [
-		clearForm,
-		invalidateQueries,
-		refetchUserTokens,
-	]);
 
 	useEffect(() => {
 		if (amount && !isMaxWithdraw) {

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useDepositMethod } from '../use-deposit-method';
@@ -11,17 +11,18 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 	const queryClient = useQueryClient();
 	const { refetch: refetchUserTokens } = useUserTokensContext();
 
-	const invalidateQueries = useCallback(() => {
-		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
-	}, [queryClient]);
+	// Memoize callbacks array to prevent changing size between renders
+	const refetchCallbacks = useMemo(() => {
+		const invalidateQueries = () => {
+			queryClient.invalidateQueries({ queryKey: ['token-balances'] });
+			queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
+			queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
+		};
 
-	useRefetchOnSuccess(depositMethod.isSuccess, [
-		clearAmount,
-		invalidateQueries,
-		refetchUserTokens,
-	]);
+		return [clearAmount, invalidateQueries, refetchUserTokens];
+	}, [clearAmount, queryClient, refetchUserTokens]);
+
+	useRefetchOnSuccess(depositMethod.isSuccess, refetchCallbacks);
 
 	const handleDeposit = useCallback(async (amount: string) => {
 		if (!amount) return;

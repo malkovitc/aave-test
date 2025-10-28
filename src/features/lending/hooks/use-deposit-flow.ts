@@ -49,6 +49,7 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 		token.symbol,
 		approvalHook.isApproving,
 		transactionHook.isDepositing,
+		transactionHook.isDepositSuccess,
 		amountHook.amount
 	);
 
