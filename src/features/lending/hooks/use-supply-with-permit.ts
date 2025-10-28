@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { parseUnits, type Address, type Chain } from 'viem';
 import { toast } from 'sonner';
@@ -69,15 +69,23 @@ function getSupplyErrorMessage(
 export function useSupplyWithPermit(token: TokenConfig) {
 	const { address: userAddress, chainId, chain } = useAccount();
 	const { signPermit } = usePermitSignature();
-	const { executeSupplyWithPermit, hash, isPending, error } = useSupplyTransaction();
+	const { executeSupplyWithPermit, hash, isPending, error: writeError } = useSupplyTransaction();
 	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
 		useTransactionMonitor(hash);
 
-	// Track signing state separately (before transaction is sent)
 	const [isSigning, setIsSigning] = useState(false);
+	const transactionTokenSymbol = useRef<string | null>(null);
 
-	// Create unique toast ID for this token to prevent cross-token toast interference
-	const toastId = `supply-permit-${token.symbol}`;
+	const shouldShowToasts = hash === undefined || transactionTokenSymbol.current === token.symbol;
+
+	const toastId = useMemo(() => `supply-permit-${token.symbol}`, [token.symbol]);
+
+	const combinedError = writeError || txError;
+
+	// Memoize error message to avoid recalculating on every render
+	const errorMessage = useMemo(() => {
+		return getSupplyErrorMessage(combinedError, receiptStatus, manualReceiptError, chain, token.symbol);
+	}, [combinedError, receiptStatus, manualReceiptError, chain, token.symbol]);
 
 	const supplyWithPermit = async (amount: string) => {
 		// Early returns for validation
@@ -107,13 +115,13 @@ export function useSupplyWithPermit(token: TokenConfig) {
 			const amountBigInt = parseUnits(amount, token.decimals);
 			const permitData = await fetchTokenPermitData(token, userAddress, chainId);
 
-			// Request signature from user
 			setIsSigning(true);
 			toast.loading('Please sign the permit message...', { id: toastId });
 			const signature = await signPermit(permitData, userAddress, poolAddress, amountBigInt);
 			setIsSigning(false);
 
-			// Execute transaction
+			transactionTokenSymbol.current = token.symbol;
+
 			toast.loading('Please confirm transaction in wallet...', { id: toastId });
 			executeSupplyWithPermit(poolAddress, token.address, amountBigInt, userAddress, permitData.deadline, signature);
 		} catch (err: unknown) {
@@ -126,55 +134,38 @@ export function useSupplyWithPermit(token: TokenConfig) {
 		}
 	};
 
+	// Effect 1: Show confirming toast when transaction is being mined
 	useEffect(() => {
-		// Early return if no transaction hash
-		if (!hash) return;
-
-		// Show confirming toast when transaction is being mined
-		if (isConfirming && !isSuccess) {
+		if (shouldShowToasts && hash && isConfirming && !isSuccess) {
 			toast.loading('Confirming transaction...', { id: toastId });
 		}
+	}, [shouldShowToasts, hash, isConfirming, isSuccess, toastId]);
 
-		// Handle success - isSuccess is enough, receiptStatus might lag behind
-		if (isSuccess) {
+	// Effect 2: Handle success toast
+	useEffect(() => {
+		if (shouldShowToasts && hash && isSuccess) {
 			toast.success(`Deposited ${token.symbol} successfully!`, { id: toastId });
-			return;
 		}
+	}, [shouldShowToasts, hash, isSuccess, token.symbol, toastId]);
 
-		// Handle failure - only if not successful
-		const hasFailed = txError || receiptStatus === 'error';
-		if (hasFailed && !isSuccess) {
-			console.error('❌ SupplyWithPermit FAILED:', {
-				error: txError,
-				receiptStatus,
-				isSuccess,
-				manualReceiptError,
-			});
+	// Effect 3: Handle failure toast
+	useEffect(() => {
+		if (!shouldShowToasts || isSuccess) return;
 
-			const errorMessage = getSupplyErrorMessage(txError, receiptStatus, manualReceiptError, chain, token.symbol);
+		// Show error if writeContract failed OR if transaction was sent but failed
+		const hasFailed = writeError || txError || receiptStatus === 'error';
+		if (hasFailed) {
 			toast.error(errorMessage, { id: toastId });
 		}
-	}, [
-		hash,
-		isPending,
-		isConfirming,
-		isSuccess,
-		error,
-		receiptError,
-		receiptStatus,
-		token.symbol,
-		manualReceiptError,
-		txError,
-		chain,
-		toastId,
-	]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [shouldShowToasts, writeError, isSuccess, errorMessage, toastId]);
 
 	return {
 		supplyWithPermit,
 		hash,
-		isPending: isSigning || isPending || isConfirming,
+		isPending: isSigning || (isPending && !writeError) || (isConfirming && !writeError),
 		isSuccess,
-		error: txError,
+		error: combinedError,
 		receiptError,
 		receiptStatus,
 		manualReceiptError,

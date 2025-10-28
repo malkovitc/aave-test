@@ -40,8 +40,16 @@ build
 # Husky
 .husky/_
 
-# Development documentation and scripts
-documents/
-
 # Claude AI settings
 .claude/
+
+# Backup and temporary files
+*.bak
+*.bak[0-9]
+*.backup
+*.tmp
+*.old
+*.v[0-9].*
+*_backup.*
+*-old.*
+*~

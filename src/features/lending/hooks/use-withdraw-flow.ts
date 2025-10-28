@@ -1,47 +1,26 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { parseUnits, type Address } from 'viem';
+import { useState, useCallback, useEffect } from 'react';
+import { type Address } from 'viem';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useWithdraw } from './use-withdraw';
-import { useTokenBalances } from '@/features/tokens/hooks/use-token-balances';
-import { useATokenBalances } from '@/features/tokens/hooks/use-atoken-balances';
 import { useDepositContext } from '../context/DepositContext';
+import { useAmountValidation } from '@/shared/hooks/use-amount-validation';
+import { useRefetchOnSuccess } from './use-refetch-on-success';
+import { useUserTokensContext } from '@/features/tokens/context/UserTokensContext';
 
-/**
- * Hook for withdraw form flow
- * Manages amount state, validation, and withdraw execution
- *
- * @param token - Token configuration
- * @param balance - Available aToken balance as string
- * @param aTokenAddress - Address of the aToken contract
- * @returns Form state and handlers
- */
 export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddress?: Address) {
 	const [amount, setAmount] = useState('');
 	const [isMaxWithdraw, setIsMaxWithdraw] = useState(false);
 	const queryClient = useQueryClient();
-	const { setIsWithdrawing, setWithdrawingTokenSymbol } = useDepositContext();
-
-	const { refetch: refetchBalances } = useTokenBalances();
-	const { refetch: refetchATokens } = useATokenBalances();
+	const { startWithdrawing, completeTransaction } = useDepositContext();
+	const { refetch: refetchUserTokens } = useUserTokensContext();
 
 	const withdraw = useWithdraw(token);
 
-	const isValidAmount = useMemo(() => {
-		if (!amount) return false;
-		try {
-			const amountBigInt = parseUnits(amount, token.decimals);
-			const balanceBigInt = parseUnits(balance || '0', token.decimals);
-			return amountBigInt > 0n && amountBigInt <= balanceBigInt;
-		} catch {
-			return false;
-		}
-	}, [amount, balance, token.decimals]);
+	const isValidAmount = useAmountValidation(amount, balance, token.decimals);
 
 	const handleWithdraw = useCallback(async () => {
-		if (!amount) return;
-		// Validate amount before withdrawal
-		if (!isValidAmount) return;
+		if (!amount || !isValidAmount) return;
 		await withdraw.withdraw(amount, isMaxWithdraw);
 	}, [amount, withdraw, isValidAmount, isMaxWithdraw]);
 
@@ -49,34 +28,37 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 		setIsMaxWithdraw(true);
 	}, []);
 
-	// Reset form and refetch balances after successful withdrawal
-	useEffect(() => {
-		if (withdraw.isSuccess) {
-			setAmount('');
-			setIsMaxWithdraw(false);
-			// Refetch token balances and aToken balances from blockchain
-			refetchBalances();
-			refetchATokens();
-			// Invalidate queries for any React Query caches
-			queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-			queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-			queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
-		}
-	}, [withdraw.isSuccess, queryClient, refetchBalances, refetchATokens]);
+	const clearForm = useCallback(() => {
+		setAmount('');
+		setIsMaxWithdraw(false);
+	}, []);
 
-	// Reset isMaxWithdraw when amount changes (user manually edits)
+	const invalidateQueries = useCallback(() => {
+		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
+		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
+		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
+	}, [queryClient]);
+
+	useRefetchOnSuccess(withdraw.isSuccess, [
+		clearForm,
+		invalidateQueries,
+		refetchUserTokens,
+	]);
+
 	useEffect(() => {
 		if (amount && !isMaxWithdraw) {
 			setIsMaxWithdraw(false);
 		}
 	}, [amount, isMaxWithdraw]);
 
-	// Sync withdraw pending state to context
 	useEffect(() => {
-		const isPending = withdraw.isPending;
-		setIsWithdrawing(isPending);
-		setWithdrawingTokenSymbol(isPending ? token.symbol : null);
-	}, [withdraw.isPending, token.symbol, setIsWithdrawing, setWithdrawingTokenSymbol]);
+		if (withdraw.isPending) {
+			startWithdrawing(token.symbol);
+		} else {
+			completeTransaction();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [withdraw.isPending, token.symbol]);
 
 	return {
 		amount,

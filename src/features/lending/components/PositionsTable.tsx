@@ -14,38 +14,11 @@ interface PositionsTableProps {
 	onWithdraw?: (token: TokenConfig) => void;
 }
 
-/**
- * PositionsTable component
- *
- * Displays user's aToken positions (deposited assets earning interest).
- * Shows balance and allows withdrawal.
- *
- * Features:
- * - Responsive table layout
- * - Copy aToken address functionality
- * - Withdraw callback integration (scrolls to WithdrawFormCard)
- * - Loading and empty states
- *
- * Accessibility:
- * - Proper button types and aria-labels
- * - Table semantics for screen readers
- *
- * Performance:
- * - Memoized to prevent unnecessary re-renders
- * - Callbacks memoized with useCallback
- */
 function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 	const { positions, isLoading } = useATokenBalances();
 	const copyAddress = useClipboardToast('Address copied to clipboard');
-	const { isWithdrawing, withdrawingTokenSymbol, isDepositing, depositingTokenSymbol } = useDepositContext();
+	const { isWithdrawing, withdrawingTokenSymbol } = useDepositContext();
 
-	// Calculate existing token symbols from positions
-	const existingTokenSymbols = new Set(positions.map((p) => p.token.symbol));
-
-	// Check if we should show a pending row for the token being deposited
-	const shouldShowPendingRow = isDepositing && depositingTokenSymbol && !existingTokenSymbols.has(depositingTokenSymbol);
-
-	// Memoize withdraw click handler
 	const handleWithdrawClick = useCallback(
 		(token: TokenConfig): void => {
 			if (onWithdraw) {
@@ -79,7 +52,7 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{positions.length === 0 && !shouldShowPendingRow ? (
+								{positions.length === 0 ? (
 									<TableRow>
 										<TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
 											No positions yet. Deposit tokens to start earning interest.
@@ -87,16 +60,14 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 									</TableRow>
 								) : (
 									<>
-										{positions.map(({ token, aTokenAddress, formatted, raw }) => {
-										// Check if THIS specific token is being withdrawn
+										{positions.map(({ token, aTokenAddress, formatted, raw, isOptimistic }) => {
 										const isThisTokenWithdrawing = isWithdrawing && withdrawingTokenSymbol === token.symbol;
 
 										return (
-											<TableRow key={token.symbol}>
+											<TableRow key={token.symbol} className={isOptimistic ? 'opacity-70' : ''}>
 												<TableCell>
 													<div>
 														<span className="font-medium text-foreground">a{token.symbol}</span>
-														{/* Mobile: show address below */}
 														<div className="md:hidden flex items-center gap-1 mt-1">
 															<span className="text-xs text-muted-foreground">{formatAddress(aTokenAddress)}</span>
 															<button
@@ -104,6 +75,7 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 																onClick={() => copyAddress(aTokenAddress)}
 																className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
 																aria-label="Copy aToken address"
+																disabled={isOptimistic}
 															>
 																<Copy className="w-3 h-3" aria-hidden="true" />
 															</button>
@@ -118,6 +90,7 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 															onClick={() => copyAddress(aTokenAddress)}
 															className="p-0.5 hover:opacity-70 transition-opacity text-muted-foreground"
 															aria-label="Copy aToken address"
+															disabled={isOptimistic}
 														>
 															<Copy className="w-3 h-3" aria-hidden="true" />
 														</button>
@@ -125,6 +98,9 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 												</TableCell>
 												<TableCell className="text-right">
 													<span className="text-foreground">{formatted}</span>
+													{isOptimistic && (
+														<span className="ml-1 text-xs text-muted-foreground">(pending)</span>
+													)}
 												</TableCell>
 												<TableCell className="text-right">
 													<Button
@@ -132,13 +108,18 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 														size="sm"
 														variant="outline"
 														onClick={() => handleWithdrawClick(token)}
-														disabled={raw === 0n || isWithdrawing}
+														disabled={raw === 0n || isWithdrawing || isOptimistic}
 														aria-label={`Withdraw ${token.symbol}`}
 													>
 														{isThisTokenWithdrawing ? (
 															<>
 																<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
 																Withdrawing...
+															</>
+														) : isOptimistic ? (
+															<>
+																<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+																Depositing...
 															</>
 														) : (
 															'Withdraw'
@@ -148,31 +129,6 @@ function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
 											</TableRow>
 										);
 									})}
-
-										{/* Show pending row for new token being deposited */}
-										{shouldShowPendingRow && (
-											<TableRow key={`pending-${depositingTokenSymbol}`} className="animate-pulse">
-												<TableCell>
-													<div>
-														<span className="font-medium text-muted-foreground">a{depositingTokenSymbol}</span>
-													</div>
-												</TableCell>
-												<TableCell className="hidden md:table-cell">
-													<div className="h-4 w-24 bg-muted rounded animate-pulse" />
-												</TableCell>
-												<TableCell className="text-right">
-													<div className="flex justify-end">
-														<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-													</div>
-												</TableCell>
-												<TableCell className="text-right">
-													<Button type="button" size="sm" variant="outline" disabled>
-														<Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
-														Pending...
-													</Button>
-												</TableCell>
-											</TableRow>
-										)}
 									</>
 								)}
 							</TableBody>

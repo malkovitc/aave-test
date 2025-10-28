@@ -1,4 +1,4 @@
-import { Suspense, useRef, useCallback } from 'react';
+import { Suspense, useRef, useCallback, useMemo } from 'react';
 import { Providers } from './providers';
 import { Layout } from '@/shared/components/Layout';
 import { InfoBanner } from '@/shared/components/InfoBanner';
@@ -23,7 +23,8 @@ function AppContent() {
 	const { focusDepositInput, focusWithdrawInput } = useDepositContext();
 
 	// Show only tokens with positive balance, limit to 4
-	const tokens = allTokens.filter((t) => t.balance > 0n).slice(0, 4);
+	// Memoized to prevent recalculation on every render
+	const tokens = useMemo(() => allTokens.filter((t) => t.balance > 0n).slice(0, 4), [allTokens]);
 
 	const depositFormRef = useRef<DepositFormCardRef>(null);
 	const withdrawFormRef = useRef<WithdrawFormCardRef>(null);

@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
 import { toast } from 'sonner';
+import { useRef } from 'react';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
+import { useTransactionToasts } from '@/shared/hooks/use-transaction-toasts';
 import aavePoolAbi from '../abis/AavePool.json';
 
 export function useDeposit(token: TokenConfig) {
@@ -14,8 +15,16 @@ export function useDeposit(token: TokenConfig) {
 		hash,
 	});
 
-	// Create unique toast ID for this token to prevent cross-token toast interference
-	const toastId = `deposit-${token.symbol}`;
+	const transactionTokenSymbol = useRef<string | null>(null);
+	const shouldShowToasts = hash === undefined || transactionTokenSymbol.current === token.symbol;
+	const toastId = useTransactionToasts(
+		token.symbol,
+		'deposit',
+		shouldShowToasts ? hash : undefined,
+		isConfirming,
+		isSuccess,
+		shouldShowToasts ? error : null
+	);
 
 	const deposit = async (amount: string) => {
 		if (!userAddress || !chainId) {
@@ -36,6 +45,8 @@ export function useDeposit(token: TokenConfig) {
 				return;
 			}
 
+			transactionTokenSymbol.current = token.symbol;
+
 			writeContract({
 				address: poolAddress,
 				abi: aavePoolAbi,
@@ -44,9 +55,9 @@ export function useDeposit(token: TokenConfig) {
 					token.address,
 					amountBigInt,
 					userAddress,
-					0, // referral code
+					0,
 				],
-				gas: 500000n, // Explicit gas limit to avoid estimation issues
+				gas: 500000n,
 			});
 
 			toast.loading('Please confirm transaction in wallet...', { id: toastId });
@@ -55,27 +66,6 @@ export function useDeposit(token: TokenConfig) {
 			toast.error('Failed to deposit', { id: toastId });
 		}
 	};
-
-	useEffect(() => {
-		// Don't show toasts if there's no transaction hash
-		if (!hash) return;
-
-		// Show confirming toast when transaction is being mined
-		if (isConfirming && !isSuccess) {
-			toast.loading('Confirming transaction...', { id: toastId });
-		}
-
-		// Handle success
-		if (isSuccess) {
-			toast.success(`Deposited ${token.symbol} successfully!`, { id: toastId });
-		}
-
-		// Handle error
-		if (error) {
-			console.error('❌ Deposit FAILED:', error);
-			toast.error('Deposit failed', { id: toastId });
-		}
-	}, [hash, isPending, isConfirming, isSuccess, error, token.symbol, toastId]);
 
 	return {
 		deposit,

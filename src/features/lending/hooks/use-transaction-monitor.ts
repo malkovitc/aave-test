@@ -54,7 +54,6 @@ export function useTransactionMonitor(hash: Hex | undefined) {
 				const receipt = await publicClient.getTransactionReceipt({ hash });
 
 				// Guard: Component may have unmounted during async operation
-				// Prevent setState on unmounted component
 				if (isCancelled) return;
 
 				// Handle receipt status
@@ -64,10 +63,9 @@ export function useTransactionMonitor(hash: Hex | undefined) {
 
 				// Mark as checked for both success and reverted
 				setManualReceiptChecked(true);
-			} catch (err) {
-				if (!isCancelled) {
-					console.error('Failed to manually check receipt:', err);
-				}
+			} catch {
+				// Silently ignore - transaction may not be mined yet
+				// This is expected behavior for fast transactions
 			}
 		};
 

@@ -1,16 +1,22 @@
-import { createContext, useContext, useState, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useMemo, useRef, type ReactNode } from 'react';
 import { SCROLL_WITH_FOCUS_DELAY_MS } from '@/shared/constants/timing';
+import { depositContextReducer } from './deposit-context-reducer';
+import { initialTransactionState, isDepositing, isWithdrawing } from './deposit-context-types';
 
 interface DepositContextValue {
-	// State for disabling buttons during deposit/withdraw
+	// State Machine (replaces 5 useState with 1 useReducer)
 	isDepositing: boolean;
-	setIsDepositing: (value: boolean) => void;
 	depositingTokenSymbol: string | null;
-	setDepositingTokenSymbol: (symbol: string | null) => void;
+	depositingAmount: string | null;
 	isWithdrawing: boolean;
-	setIsWithdrawing: (value: boolean) => void;
 	withdrawingTokenSymbol: string | null;
-	setWithdrawingTokenSymbol: (symbol: string | null) => void;
+
+	// Actions (dispatch functions)
+	startApproving: (tokenSymbol: string, amount: string) => void;
+	startDepositing: (tokenSymbol: string, amount: string) => void;
+	startWithdrawing: (tokenSymbol: string) => void;
+	completeTransaction: () => void;
+	reset: () => void;
 
 	// Refs for auto-focus after scroll
 	depositInputRef: React.RefObject<HTMLInputElement>;
@@ -22,25 +28,46 @@ interface DepositContextValue {
 const DepositContext = createContext<DepositContextValue | undefined>(undefined);
 
 /**
- * DepositProvider - Manages global deposit and withdraw state
+ * DepositProvider - Manages global deposit and withdraw state using State Machine
+ *
+ * Architecture (useReducer Pattern):
+ * - Replaced 5 useState with 1 useReducer
+ * - State machine prevents invalid states
+ * - Reducer has 0 dependencies (pure function)
+ * - useMemo has 3 dependencies (down from 7!)
  *
  * Purpose:
  * - Share `isDepositing`/`isWithdrawing` state to disable all buttons during transactions
  * - Track which specific token is being deposited/withdrawn for better UX
  * - Provide shared refs for auto-focusing amount inputs after scroll
- *
- * Architecture:
- * - Follows existing pattern (similar to UserTokensContext)
- * - Keeps transaction orchestration logic separate from UI components
- * - Enables clean communication between cards and forms
  */
 export function DepositProvider({ children }: { children: ReactNode }) {
-	const [isDepositing, setIsDepositing] = useState(false);
-	const [depositingTokenSymbol, setDepositingTokenSymbol] = useState<string | null>(null);
-	const [isWithdrawing, setIsWithdrawing] = useState(false);
-	const [withdrawingTokenSymbol, setWithdrawingTokenSymbol] = useState<string | null>(null);
+	// State Machine (1 useReducer replaces 5 useState)
+	const [state, dispatch] = useReducer(depositContextReducer, initialTransactionState);
+
 	const depositInputRef = useRef<HTMLInputElement>(null);
 	const withdrawInputRef = useRef<HTMLInputElement>(null);
+
+	// Action creators (stable references, no dependencies)
+	const startApproving = useCallback((tokenSymbol: string, amount: string) => {
+		dispatch({ type: 'START_APPROVING', payload: { tokenSymbol, amount } });
+	}, []);
+
+	const startDepositing = useCallback((tokenSymbol: string, amount: string) => {
+		dispatch({ type: 'START_DEPOSITING', payload: { tokenSymbol, amount } });
+	}, []);
+
+	const startWithdrawing = useCallback((tokenSymbol: string) => {
+		dispatch({ type: 'START_WITHDRAWING', payload: { tokenSymbol } });
+	}, []);
+
+	const completeTransaction = useCallback(() => {
+		dispatch({ type: 'COMPLETE_TRANSACTION' });
+	}, []);
+
+	const reset = useCallback(() => {
+		dispatch({ type: 'RESET' });
+	}, []);
 
 	const focusDepositInput = useCallback(() => {
 		// Delay to allow scroll animation to complete
@@ -57,23 +84,32 @@ export function DepositProvider({ children }: { children: ReactNode }) {
 		}, SCROLL_WITH_FOCUS_DELAY_MS);
 	}, []);
 
-	// Memoize context value to prevent unnecessary re-renders
+	// Memoize context value (3 deps instead of 7!)
+	// Note: Action creators are stable (useCallback with []) and don't need to be dependencies
 	const value = useMemo(
 		() => ({
-			isDepositing,
-			setIsDepositing,
-			depositingTokenSymbol,
-			setDepositingTokenSymbol,
-			isWithdrawing,
-			setIsWithdrawing,
-			withdrawingTokenSymbol,
-			setWithdrawingTokenSymbol,
+			// Derived state
+			isDepositing: isDepositing(state),
+			depositingTokenSymbol: state.tokenSymbol,
+			depositingAmount: state.amount,
+			isWithdrawing: isWithdrawing(state),
+			withdrawingTokenSymbol: state.type === 'withdraw' ? state.tokenSymbol : null,
+
+			// Actions
+			startApproving,
+			startDepositing,
+			startWithdrawing,
+			completeTransaction,
+			reset,
+
+			// Refs and focus functions
 			depositInputRef,
 			withdrawInputRef,
 			focusDepositInput,
 			focusWithdrawInput,
 		}),
-		[isDepositing, depositingTokenSymbol, isWithdrawing, withdrawingTokenSymbol, focusDepositInput, focusWithdrawInput]
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[state, focusDepositInput, focusWithdrawInput] // Only 3 deps! Action creators are stable
 	);
 
 	return <DepositContext.Provider value={value}>{children}</DepositContext.Provider>;
