@@ -19,6 +19,7 @@ export function useWithdrawFlow(token: TokenConfig, balance: string, aTokenAddre
 	const withdraw = useWithdraw(token);
 
 	// Show transaction toast notifications
+	// Only show toast when there's an actual transaction (hash exists)
 	useTransactionToast(
 		withdraw.hash,
 		withdraw.isPending,

@@ -7,6 +7,10 @@ interface ToastMessages {
 	error: string;
 }
 
+// Global registry to track which transaction hashes have already shown success toasts
+// This prevents duplicate toasts when multiple hook instances exist (e.g., deposit + withdraw flows)
+const globalSuccessHashRegistry = new Set<string>();
+
 /**
  * Generic hook to show toast notifications for any transaction
  *
@@ -58,6 +62,10 @@ export function useTransactionToast(
 			hasShownSuccess.current = false;
 			hasShownError.current = false;
 		}
+		// Also clear currentHash when hash becomes undefined (transaction cleared)
+		if (!hash && currentHash.current) {
+			currentHash.current = undefined;
+		}
 	}, [hash]);
 
 	// Show appropriate toast based on transaction state
@@ -71,10 +79,12 @@ export function useTransactionToast(
 			return;
 		}
 
-		// Success state - show once per transaction
-		if (isSuccess && !hasShownSuccess.current) {
+		// Success state - show once per transaction globally
+		// Use global registry to prevent duplicate toasts across multiple hook instances
+		if (isSuccess && !hasShownSuccess.current && !globalSuccessHashRegistry.has(hash)) {
 			toast.success(messages.success, { id: toastId });
 			hasShownSuccess.current = true;
+			globalSuccessHashRegistry.add(hash);
 			return;
 		}
 
