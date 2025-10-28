@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useSyncExternalStore } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
 import { type Address, parseUnits } from 'viem';
 import { type TokenConfig } from '../config/tokens';
@@ -6,6 +6,7 @@ import { useUserTokensContext } from '../context/UserTokensContext';
 import { formatTokenAmount } from '@/shared/lib/bigint-utils';
 import { ERC20_BALANCE_ABI } from '@/shared/contracts/erc20';
 import { BALANCE_REFETCH_INTERVAL_MS } from '@/shared/constants/timing';
+import { transactionManager } from '@/shared/utils/transaction-manager';
 import { useDepositContext } from '@/features/lending/context/DepositContext';
 
 interface ATokenBalance {
@@ -26,7 +27,18 @@ interface ATokenBalance {
 export function useATokenBalances() {
 	const { address } = useAccount();
 	const { tokens: userTokens, isLoading: isLoadingUserTokens } = useUserTokensContext();
-	const { depositingTokenSymbol, depositingAmount } = useDepositContext();
+	const { depositingAmount } = useDepositContext();
+
+	// Subscribe to TransactionManager for pending deposit (for optimistic spinner)
+	useSyncExternalStore(
+		transactionManager.subscribe,
+		transactionManager.getSnapshot,
+		transactionManager.getSnapshot
+	);
+
+	// Get pending deposit from TransactionManager (more reliable than DepositContext)
+	const pendingDeposit = transactionManager.getPendingDeposit();
+	const depositingTokenSymbol = pendingDeposit?.tokenSymbol || null;
 
 	// Create contract calls for all aToken balances
 	const contracts = useMemo(

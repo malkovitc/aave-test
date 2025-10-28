@@ -16,11 +16,15 @@ import { useUserTokensContext } from '@/features/tokens/context/UserTokensContex
 import { useWallet } from '@/features/wallet/hooks/use-wallet';
 import { useDepositContext } from '@/features/lending/context/DepositContext';
 import { SCROLL_ANIMATION_DELAY_MS } from '@/shared/constants/timing';
+import { useCentralizedTransactionToasts } from '@/shared/hooks/use-centralized-transaction-toasts';
 
 function AppContent() {
 	const { isConnected } = useWallet();
 	const { tokens: allTokens, isLoading: isLoadingTokens } = useUserTokensContext();
 	const { focusDepositInput, focusWithdrawInput } = useDepositContext();
+
+	// Centralized transaction toast notifications
+	useCentralizedTransactionToasts();
 
 	// Show only tokens with positive balance, limit to 4
 	// Memoized to prevent recalculation on every render

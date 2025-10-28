@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
 import { toast } from 'sonner';
@@ -8,97 +8,86 @@ import { fetchTokenPermitData } from './use-token-permit-data';
 import { usePermitSignature } from './use-permit-signature';
 import { useSupplyTransaction } from './use-supply-transaction';
 import { useTransactionMonitor } from './use-transaction-monitor';
+import { transactionManager } from '@/shared/utils/transaction-manager';
 
-// Error codes
 const USER_REJECTED_ERROR_CODE = 4001;
 
-/**
- * Check if error is user rejection
- */
 function isUserRejection(error: unknown): boolean {
 	const err = error as { message?: string; code?: number };
 	return err.message?.includes('User rejected') || err.code === USER_REJECTED_ERROR_CODE;
 }
 
-/**
- * Hook for supplyWithPermit - combines EIP-2612 permit + Aave deposit in one transaction
- * Only works for tokens that support permit (USDC, USDT)
- *
- * Flow:
- * 1. User signs permit message (free, no gas)
- * 2. Single transaction calls Pool.supplyWithPermit with signature
- * 3. Pool contract calls token.permit() then executes supply()
- *
- * Composition:
- * - fetchTokenPermitData: Fetches token metadata for permit signature
- * - usePermitSignature: Handles signature creation and parsing
- * - useSupplyTransaction: Executes the supplyWithPermit transaction
- * - useTransactionMonitor: Monitors transaction with fallback receipt check
- */
 export function useSupplyWithPermit(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
 	const { signPermit } = usePermitSignature();
 	const { executeSupplyWithPermit, hash, isPending, error: writeError } = useSupplyTransaction();
-	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
-		useTransactionMonitor(hash);
+	const { isConfirming, isSuccess, txError } = useTransactionMonitor(hash);
 
 	const [isSigning, setIsSigning] = useState(false);
 
-	const combinedError = writeError || txError;
+	useEffect(() => {
+		if (txError && hash) {
+			transactionManager.updateStatus(token.symbol, 'deposit', 'error', txError);
+		}
+	}, [txError, hash, token.symbol]);
 
 	const supplyWithPermit = async (amount: string) => {
-		// Early returns for validation
 		if (!userAddress || !chainId) {
-			console.error('🔴 No wallet connected');
-			return;
+			throw new Error('No wallet connected');
 		}
 
 		if (!token.supportsPermit) {
-			console.error('🔴 Token does not support permit');
-			return;
+			throw new Error('Token does not support permit');
 		}
 
-		// Get Pool address with error handling
-		let poolAddress: Address;
-		try {
-			({ poolAddress } = getChainConfig(chainId));
-		} catch (configError) {
-			console.error('🔴 Unsupported chain for deposit', configError);
-			return;
-		}
+		const { poolAddress } = getChainConfig(chainId);
+		const amountBigInt = parseUnits(amount, token.decimals);
+		const permitData = await fetchTokenPermitData(token, userAddress, chainId);
+
+		const toastId = `permit-sign-${token.symbol}`;
 
 		try {
-			const amountBigInt = parseUnits(amount, token.decimals);
-			const permitData = await fetchTokenPermitData(token, userAddress, chainId);
-
 			setIsSigning(true);
-			// Keep this toast as it's immediate user action feedback (not transaction state)
-			toast.loading('Please sign the permit message...', { id: `permit-sign-${token.symbol}` });
+			toast.loading('Please sign the permit message...', { id: toastId });
+
 			const signature = await signPermit(permitData, userAddress, poolAddress, amountBigInt);
-			setIsSigning(false);
-			toast.dismiss(`permit-sign-${token.symbol}`);
 
-			executeSupplyWithPermit(poolAddress, token.address, amountBigInt, userAddress, permitData.deadline, signature);
+			toast.dismiss(toastId);
+			setIsSigning(false);
+
+			executeSupplyWithPermit(
+				poolAddress,
+				token.address,
+				amountBigInt,
+				userAddress,
+				permitData.deadline,
+				signature
+			);
 		} catch (err: unknown) {
-			console.error('🔴 SupplyWithPermit error:', err);
+			toast.dismiss(toastId);
 			setIsSigning(false);
 
-			// Show appropriate error message for signature cancellation
 			if (isUserRejection(err)) {
-				toast.error('Signature cancelled', { id: `permit-sign-${token.symbol}` });
+				toast.error('Signature cancelled');
 			}
+
+			throw err;
 		}
 	};
+
+	const hasError = writeError || txError;
+	const isTransactionPending =
+		isSigning ||
+		isPending ||
+		isConfirming ||
+		(hash && !isSuccess && !hasError);
 
 	return {
 		supplyWithPermit,
 		hash,
-		isPending: isSigning || (isPending && !writeError) || (isConfirming && !writeError),
+		isPending: isTransactionPending,
 		isSuccess,
-		error: combinedError,
-		receiptError,
-		receiptStatus,
-		manualReceiptError,
+		error: writeError || txError,
 		isSigning,
 	};
 }

@@ -67,10 +67,10 @@ export function useFormState(params: FormStateParams) {
 		return hasBaseDisabledConditions || isWrongNetwork || !selectedToken;
 	}, [hasBaseDisabledConditions, isWrongNetwork, selectedToken]);
 
-	// Primary button disabled: base conditions + invalid amount
+	// Primary button disabled: base conditions + invalid amount + loading state
 	const isPrimaryButtonDisabled = useMemo(() => {
-		return hasBaseDisabledConditions || !flow.isValidAmount;
-	}, [hasBaseDisabledConditions, flow.isValidAmount]);
+		return hasBaseDisabledConditions || !flow.isValidAmount || flow.isLoading;
+	}, [hasBaseDisabledConditions, flow.isValidAmount, flow.isLoading]);
 
 	// Token lookup map for O(1) access (instead of O(n) find)
 	const tokensBySymbol = useMemo(() => {

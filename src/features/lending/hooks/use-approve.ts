@@ -10,9 +10,6 @@ export function useApprove(token: TokenConfig) {
 		hash,
 	});
 
-	// Log state changes
-	console.log(`[useApprove ${token.symbol}] hash=${hash?.slice(0,8)}, isPending=${isPending}, isConfirming=${isConfirming}, isSuccess=${isSuccess}, error=${!!error}`);
-
 	// Show transaction toast notifications
 	useTransactionToast(
 		hash,

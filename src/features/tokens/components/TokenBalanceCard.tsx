@@ -5,6 +5,7 @@ import { Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatAddress } from '@/shared/lib/format-address';
 import { useDepositContext } from '@/features/lending/context/DepositContext';
+import { useTransactionManager } from '@/shared/hooks/use-transaction-manager';
 import type { TokenConfig } from '../config/tokens';
 
 interface TokenBalanceCardProps {
@@ -13,57 +14,27 @@ interface TokenBalanceCardProps {
 	onDeposit: () => void;
 }
 
-/**
- * TokenBalanceCard component
- *
- * Matches Figma design exactly:
- * - Rounded card with border
- * - TokenIcon (40px) on left
- * - Token info (symbol, name, balance, contract address)
- * - Copy button for contract address
- * - Deposit button on right
- *
- * Design specs from Figma:
- * - Container: rounded-xl, border, p-3 md:p-4
- * - Layout: flex items-center justify-between
- * - Gap: gap-2 md:gap-3
- */
 function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCardProps) {
-	const { isDepositing, depositingTokenSymbol } = useDepositContext();
+	const { depositingTokenSymbol } = useDepositContext();
+	const { isPending } = useTransactionManager(token.symbol, 'deposit');
 
-	// Check if THIS specific token is being deposited
-	const isThisTokenDepositing = isDepositing && depositingTokenSymbol === token.symbol;
+	const isThisTokenDepositing = isPending && depositingTokenSymbol === token.symbol;
 
 	const copyAddress = useCallback(async () => {
 		try {
 			await navigator.clipboard.writeText(token.address);
 			toast.success('Address copied to clipboard');
 		} catch {
-			// Fallback for browsers without clipboard API
-			const textArea = document.createElement('textarea');
-			textArea.value = token.address;
-			textArea.style.position = 'fixed';
-			textArea.style.left = '-999999px';
-			document.body.appendChild(textArea);
-			textArea.select();
-			try {
-				document.execCommand('copy');
-				toast.success('Address copied to clipboard');
-			} catch {
-				toast.error('Failed to copy address');
-			}
-			document.body.removeChild(textArea);
+			toast.error('Failed to copy address');
 		}
 	}, [token.address]);
 
 	return (
 		<div className="p-4 rounded-xl border border-border bg-card flex items-center justify-between gap-3">
-			{/* Left Side: Icon + Info */}
 			<div className="flex items-center gap-3 min-w-0 flex-1">
 				<TokenIcon symbol={token.symbol} size={40} className="flex-shrink-0" />
 
 				<div className="min-w-0 flex-1">
-					{/* Symbol + Name */}
 					<div className="flex items-center gap-2 flex-wrap">
 						<span className="text-lg font-medium text-foreground">{token.symbol}</span>
 						<span className="text-sm md:text-base text-muted-foreground truncate max-w-[120px] sm:max-w-[180px] md:max-w-none">
@@ -71,12 +42,10 @@ function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCa
 						</span>
 					</div>
 
-					{/* Available Balance */}
 					<div className="text-sm md:text-base text-foreground">
 						Available: <span className="font-medium">{balance}</span>
 					</div>
 
-					{/* Contract Address */}
 					<div className="flex items-center gap-2 mt-1">
 						<span className="text-xs md:text-sm truncate text-muted-foreground">
 							Contract: {formatAddress(token.address)}
@@ -92,11 +61,10 @@ function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCa
 				</div>
 			</div>
 
-			{/* Right Side: Deposit Button */}
 			<Button
 				size="sm"
 				onClick={onDeposit}
-				disabled={isDepositing}
+				disabled={isThisTokenDepositing}
 				className="flex-shrink-0 text-xs sm:text-sm px-3 sm:px-4"
 			>
 				{isThisTokenDepositing ? (
@@ -113,5 +81,4 @@ function TokenBalanceCardComponent({ token, balance, onDeposit }: TokenBalanceCa
 	);
 }
 
-// Export memoized version to prevent unnecessary re-renders
 export const TokenBalanceCard = memo(TokenBalanceCardComponent);

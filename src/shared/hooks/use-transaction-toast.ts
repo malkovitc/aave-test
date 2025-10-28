@@ -1,34 +1,70 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
-interface ToastMessages {
+export interface ToastMessages {
 	pending: string;
 	success: string;
 	error: string;
 }
 
-// Global registry to track which transaction hashes have already shown success toasts
-// This prevents duplicate toasts when multiple hook instances exist (e.g., deposit + withdraw flows)
-const globalSuccessHashRegistry = new Set<string>();
+/**
+ * Transaction state for toast tracking
+ */
+interface TransactionState {
+	currentHash: string | undefined;
+	hasShownSuccess: boolean;
+	hasShownError: boolean;
+	previousIsError: boolean;
+}
+
+/**
+ * Global registry with automatic cleanup to prevent memory leaks
+ * Tracks shown success toasts to prevent duplicates across hook instances
+ */
+class SuccessHashRegistry {
+	private hashes = new Set<string>();
+	private readonly MAX_SIZE = 100;
+
+	has(hash: string): boolean {
+		return this.hashes.has(hash);
+	}
+
+	add(hash: string): void {
+		// Automatic cleanup if registry grows too large (FIFO)
+		if (this.hashes.size >= this.MAX_SIZE) {
+			const firstHash = this.hashes.values().next().value;
+			if (firstHash) {
+				this.hashes.delete(firstHash);
+			}
+		}
+		this.hashes.add(hash);
+	}
+
+	clear(): void {
+		this.hashes.clear();
+	}
+}
+
+const globalSuccessRegistry = new SuccessHashRegistry();
 
 /**
  * Generic hook to show toast notifications for any transaction
  *
- * This hook should be called in COMPONENTS, not in custom hooks.
- * Each component instance will have its own isolated toast logic,
- * preventing cross-token interference from wagmi's global state.
+ * Features:
+ * - Automatic toast lifecycle management (pending → success/error)
+ * - Prevents duplicate toasts across multiple hook instances
+ * - Memory-safe with automatic cleanup
+ * - Handles hash changes and state transitions correctly
  *
  * @param hash - Transaction hash from wagmi
  * @param isPending - Transaction is pending (confirming on chain)
  * @param isSuccess - Transaction completed successfully
- * @param isError - Transaction failed (from wagmi's error state)
+ * @param isError - Transaction failed
  * @param messages - Custom messages for each state
  * @param toastId - Unique toast ID (e.g., `deposit-${token.symbol}`)
  *
  * @example
  * ```tsx
- * const depositFlow = useDepositFlow(token, balance);
- *
  * useTransactionToast(
  *   depositFlow.hash,
  *   depositFlow.isPending,
@@ -36,7 +72,7 @@ const globalSuccessHashRegistry = new Set<string>();
  *   depositFlow.isError,
  *   {
  *     pending: 'Confirming deposit...',
- *     success: `Deposited ${token.symbol} successfully!`,
+ *     success: 'Deposited USDC successfully!',
  *     error: 'Deposit failed'
  *   },
  *   `deposit-${token.symbol}`
@@ -51,72 +87,91 @@ export function useTransactionToast(
 	messages: ToastMessages,
 	toastId: string
 ) {
-	const hasShownSuccess = useRef(false);
-	const hasShownError = useRef(false);
-	const currentHash = useRef<string>();
-	const previousIsError = useRef(false); // Track previous error state to detect NEW errors only
+	const state = useRef<TransactionState>({
+		currentHash: undefined,
+		hasShownSuccess: false,
+		hasShownError: false,
+		previousIsError: false,
+	});
 
-	// Reset flags when transaction hash changes (new transaction started)
 	useEffect(() => {
-		if (hash && hash !== currentHash.current) {
-			// New transaction started - reset all flags
-			console.log(`[Toast ${toastId}] 🔄 NEW HASH detected: ${hash?.slice(0,8)} (prev: ${currentHash.current?.slice(0,8)})`);
-			currentHash.current = hash;
-			hasShownSuccess.current = false;
-			hasShownError.current = false;
-			previousIsError.current = false; // Reset error tracking for new transaction
-		}
-		// Also clear currentHash when hash becomes undefined (transaction cleared)
-		if (!hash && currentHash.current) {
-			console.log(`[Toast ${toastId}] 🧹 CLEARING hash (was: ${currentHash.current?.slice(0,8)})`);
-			currentHash.current = undefined;
-			hasShownSuccess.current = false;
-			hasShownError.current = false;
-			previousIsError.current = false;
-		}
-	}, [hash, toastId]);
+		const s = state.current;
 
-	// Show appropriate toast based on transaction state
-	useEffect(() => {
+		// Handle hash changes (new transaction or cleared transaction)
+		if (hash !== s.currentHash) {
+			resetState(state.current, hash);
+			if (!hash) return; // Transaction cleared, nothing to do
+		}
+
 		// No transaction in progress
 		if (!hash) return;
 
-		// Only show toasts for the current transaction hash
-		// This prevents showing old errors when a new transaction starts
-		if (hash !== currentHash.current) return;
-
-		console.log(`[Toast ${toastId}] hash=${hash?.slice(0,8)}, pending=${isPending}, success=${isSuccess}, error=${isError}, prevError=${previousIsError.current}, hasShownError=${hasShownError.current}`);
-
-		// Pending state - transaction is being mined
-		if (isPending && !isSuccess) {
-			console.log(`[Toast ${toastId}] Showing pending toast`);
+		// Show pending toast
+		if (shouldShowPending(isPending, isSuccess)) {
 			toast.loading(messages.pending, { id: toastId });
-			previousIsError.current = isError; // Update previous error state
+			s.previousIsError = isError;
 			return;
 		}
 
-		// Success state - show once per transaction globally
-		// Use global registry to prevent duplicate toasts across multiple hook instances
-		if (isSuccess && !hasShownSuccess.current && !globalSuccessHashRegistry.has(hash)) {
-			console.log(`[Toast ${toastId}] Showing success toast`);
+		// Show success toast
+		if (shouldShowSuccess(hash, isSuccess, s.hasShownSuccess)) {
 			toast.success(messages.success, { id: toastId });
-			hasShownSuccess.current = true;
-			globalSuccessHashRegistry.add(hash);
-			previousIsError.current = isError; // Update previous error state
+			s.hasShownSuccess = true;
+			globalSuccessRegistry.add(hash);
+			s.previousIsError = isError;
 			return;
 		}
 
-		// Error state - show once per transaction
-		// IMPORTANT: Only show error if it's a NEW error (wasn't error before)
-		// This prevents showing old/stale errors when new transaction starts
-		const isNewError = isError && !previousIsError.current;
-		if (isNewError && !hasShownError.current && !isPending && !isSuccess) {
-			console.log(`[Toast ${toastId}] Showing error toast (NEW error detected)`);
+		// Show error toast
+		if (shouldShowError(isError, s.previousIsError, s.hasShownError, isPending, isSuccess)) {
 			toast.error(messages.error, { id: toastId });
-			hasShownError.current = true;
+			s.hasShownError = true;
 		}
 
-		// Always update previous error state at the end
-		previousIsError.current = isError;
-	}, [hash, isPending, isSuccess, isError, messages, toastId]);
+		// Update previous error state
+		s.previousIsError = isError;
+	}, [hash, isPending, isSuccess, isError, toastId, messages.pending, messages.success, messages.error]);
+}
+
+/**
+ * Reset transaction state for new transaction
+ */
+function resetState(state: TransactionState, newHash: string | undefined): void {
+	state.currentHash = newHash;
+	state.hasShownSuccess = false;
+	state.hasShownError = false;
+	state.previousIsError = false;
+}
+
+/**
+ * Check if should show pending toast
+ */
+function shouldShowPending(isPending: boolean, isSuccess: boolean): boolean {
+	return isPending && !isSuccess;
+}
+
+/**
+ * Check if should show success toast
+ */
+function shouldShowSuccess(
+	hash: string,
+	isSuccess: boolean,
+	hasShownSuccess: boolean
+): boolean {
+	return isSuccess && !hasShownSuccess && !globalSuccessRegistry.has(hash);
+}
+
+/**
+ * Check if should show error toast
+ * Only shows for NEW errors (not stale ones)
+ */
+function shouldShowError(
+	isError: boolean,
+	previousIsError: boolean,
+	hasShownError: boolean,
+	isPending: boolean,
+	isSuccess: boolean
+): boolean {
+	const isNewError = isError && !previousIsError;
+	return isNewError && !hasShownError && !isPending && !isSuccess;
 }

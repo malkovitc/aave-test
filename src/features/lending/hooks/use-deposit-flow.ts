@@ -50,7 +50,8 @@ export function useDepositFlow(token: TokenConfig, balance: string) {
 		approvalHook.isApproving,
 		transactionHook.isDepositing,
 		transactionHook.isDepositSuccess,
-		amountHook.amount
+		amountHook.amount,
+		transactionHook.hasRawError // Use raw error to clear optimistic UI immediately
 	);
 
 	const { handleApprove: approveFn } = approvalHook;

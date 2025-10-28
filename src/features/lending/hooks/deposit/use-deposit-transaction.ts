@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { useDepositMethod } from '../use-deposit-method';
@@ -8,19 +8,20 @@ import { useUserTokensContext } from '@/features/tokens/context/UserTokensContex
 export function useDepositTransaction(token: TokenConfig, clearAmount: () => void) {
 	const depositMethod = useDepositMethod(token);
 	const [localError, setLocalError] = useState<Error | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const queryClient = useQueryClient();
 	const { refetch: refetchUserTokens } = useUserTokensContext();
 
-	// Memoize callbacks array to prevent changing size between renders
-	const refetchCallbacks = useMemo(() => {
-		const invalidateQueries = () => {
-			queryClient.invalidateQueries({ queryKey: ['token-balances'] });
-			queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
-			queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
-		};
+	const invalidateQueries = useCallback(() => {
+		queryClient.invalidateQueries({ queryKey: ['token-balances'] });
+		queryClient.invalidateQueries({ queryKey: ['atoken-balances'] });
+		queryClient.invalidateQueries({ queryKey: ['user-tokens'] });
+	}, [queryClient]);
 
-		return [clearAmount, invalidateQueries, refetchUserTokens];
-	}, [clearAmount, queryClient, refetchUserTokens]);
+	const refetchCallbacks = useMemo(
+		() => [clearAmount, invalidateQueries, refetchUserTokens],
+		[clearAmount, invalidateQueries, refetchUserTokens]
+	);
 
 	useRefetchOnSuccess(depositMethod.isSuccess, refetchCallbacks);
 
@@ -29,13 +30,27 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 
 		try {
 			setLocalError(null);
+			setIsSubmitting(true);
 			await depositMethod.deposit(amount);
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error('Deposit failed');
 			setLocalError(error);
+			setIsSubmitting(false);
 			throw error;
 		}
 	}, [depositMethod]);
+
+	useEffect(() => {
+		const shouldClearSubmitting =
+			depositMethod.hash ||
+			depositMethod.isSuccess ||
+			depositMethod.error ||
+			localError;
+
+		if (shouldClearSubmitting) {
+			setIsSubmitting(false);
+		}
+	}, [depositMethod.hash, depositMethod.isSuccess, depositMethod.error, localError]);
 
 	const retry = useCallback(() => {
 		setLocalError(null);
@@ -44,11 +59,12 @@ export function useDepositTransaction(token: TokenConfig, clearAmount: () => voi
 	return {
 		handleDeposit,
 		retry,
-		isDepositing: depositMethod.isPending,
+		isDepositing: isSubmitting || depositMethod.isPending,
 		isDepositSuccess: depositMethod.isSuccess,
 		depositTxHash: depositMethod.hash,
 		error: localError,
-		hasError: !!localError,
+		hasError: !!localError || depositMethod.hasValidError,
+		hasRawError: !!localError || !!depositMethod.error,
 		usesPermit: depositMethod.usesPermit,
 	};
 }

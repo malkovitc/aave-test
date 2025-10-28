@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
-import { parseUnits, Address, maxUint256 } from 'viem';
+import { parseUnits, maxUint256 } from 'viem';
 import { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
 import aavePoolAbi from '../abis/AavePool.json';
@@ -7,48 +8,47 @@ import { useTransactionMonitor } from './use-transaction-monitor';
 
 export function useWithdraw(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
-	const { writeContract, data: hash, isPending } = useWriteContract();
+	const { writeContractAsync, data: hash, isPending } = useWriteContract();
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
-		useTransactionMonitor(hash);
+	const { isConfirming, isSuccess, txError } = useTransactionMonitor(hash);
 
 	const withdraw = async (amount: string, isMax: boolean = false) => {
 		if (!userAddress || !chainId) {
-			console.error('🔴 No wallet connected');
-			return;
+			throw new Error('No wallet connected');
 		}
 
+		const { poolAddress } = getChainConfig(chainId);
+		const amountBigInt = isMax ? maxUint256 : parseUnits(amount, token.decimals);
+
+		setIsSubmitting(true);
+
 		try {
-			let poolAddress: Address;
-			try {
-				({ poolAddress } = getChainConfig(chainId));
-			} catch (configError) {
-				console.error('🔴 Unsupported chain for withdraw', configError);
-				return;
-			}
-
-			// If max, use maxUint256 to withdraw all
-			const amountBigInt = isMax ? maxUint256 : parseUnits(amount, token.decimals);
-
-			writeContract({
+			await writeContractAsync({
 				address: poolAddress,
 				abi: aavePoolAbi,
 				functionName: 'withdraw',
 				args: [token.address, amountBigInt, userAddress],
 			});
 		} catch (err) {
-			console.error('🔴 Withdraw error:', err);
+			setIsSubmitting(false);
+			throw err;
 		}
 	};
+
+	useEffect(() => {
+		const shouldClearSubmitting = hash || isConfirming || isSuccess || txError;
+
+		if (shouldClearSubmitting) {
+			setIsSubmitting(false);
+		}
+	}, [hash, isConfirming, isSuccess, txError]);
 
 	return {
 		withdraw,
 		hash,
-		isPending: isPending || isConfirming,
+		isPending: isSubmitting || isPending || isConfirming,
 		isSuccess,
 		error: txError,
-		receiptError,
-		receiptStatus,
-		manualReceiptError,
 	};
 }

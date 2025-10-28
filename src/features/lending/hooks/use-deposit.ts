@@ -6,33 +6,28 @@ import aavePoolAbi from '../abis/AavePool.json';
 
 export function useDeposit(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
-	const { writeContract, data: hash, isPending, error } = useWriteContract();
+	const { writeContractAsync, data: hash, isPending, error } = useWriteContract();
 
 	const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
 		hash,
 	});
 
-	// Log state changes
-	console.log(`[useDeposit ${token.symbol}] hash=${hash?.slice(0,8)}, isPending=${isPending}, isConfirming=${isConfirming}, isSuccess=${isSuccess}, error=${!!error}`);
-
 	const deposit = async (amount: string) => {
 		if (!userAddress || !chainId) {
-			console.error('🔴 No wallet connected');
-			return;
+			throw new Error('No wallet connected');
+		}
+
+		const amountBigInt = parseUnits(amount, token.decimals);
+
+		let poolAddress: Address;
+		try {
+			({ poolAddress } = getChainConfig(chainId));
+		} catch (configError) {
+			throw new Error('Unsupported chain for deposit');
 		}
 
 		try {
-			const amountBigInt = parseUnits(amount, token.decimals);
-
-			let poolAddress: Address;
-			try {
-				({ poolAddress } = getChainConfig(chainId));
-			} catch (configError) {
-				console.error('🔴 Unsupported chain for deposit', configError);
-				return;
-			}
-
-			writeContract({
+			const result = await writeContractAsync({
 				address: poolAddress,
 				abi: aavePoolAbi,
 				functionName: 'supply',
@@ -44,8 +39,9 @@ export function useDeposit(token: TokenConfig) {
 				],
 				gas: 500000n,
 			});
+			return result;
 		} catch (err) {
-			console.error('🔴 Deposit error:', err);
+			throw err;
 		}
 	};
 
