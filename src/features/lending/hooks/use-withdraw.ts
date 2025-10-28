@@ -4,12 +4,14 @@ import { parseUnits, Address, maxUint256 } from 'viem';
 import { toast } from 'sonner';
 import { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
+import { useDepositContext } from '../context/DepositContext';
 import aavePoolAbi from '../abis/AavePool.json';
 import { useTransactionMonitor } from './use-transaction-monitor';
 
 export function useWithdraw(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
 	const { writeContract, data: hash, isPending, error } = useWriteContract();
+	const { refetchBalances } = useDepositContext();
 
 	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
 		useTransactionMonitor(hash);
@@ -62,6 +64,10 @@ export function useWithdraw(token: TokenConfig) {
 		// Handle success - isSuccess is enough, receiptStatus might lag behind
 		if (isSuccess) {
 			toast.success(`Withdrawn ${token.symbol} successfully!`, { id: toastId });
+			// Refetch balances immediately after successful withdrawal
+			if (refetchBalances) {
+				refetchBalances();
+			}
 			return;
 		}
 
@@ -90,6 +96,7 @@ export function useWithdraw(token: TokenConfig) {
 		manualReceiptError,
 		txError,
 		toastId,
+		refetchBalances,
 	]);
 
 	return {

@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Button } from '@/shared/ui/button';
@@ -15,9 +15,14 @@ interface PositionsTableProps {
 }
 
 function PositionsTableComponent({ onWithdraw }: PositionsTableProps) {
-	const { positions, isLoading } = useATokenBalances();
+	const { positions, isLoading, refetch } = useATokenBalances();
 	const copyAddress = useClipboardToast('Address copied to clipboard');
-	const { isWithdrawing, withdrawingTokenSymbol } = useDepositContext();
+	const { isWithdrawing, withdrawingTokenSymbol, setRefetchBalances } = useDepositContext();
+
+	// Register refetch callback in context for use by deposit/withdraw hooks
+	useEffect(() => {
+		setRefetchBalances(refetch);
+	}, [refetch, setRefetchBalances]);
 
 	const handleWithdrawClick = useCallback(
 		(token: TokenConfig): void => {

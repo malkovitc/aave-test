@@ -23,6 +23,10 @@ interface DepositContextValue {
 	withdrawInputRef: React.RefObject<HTMLInputElement>;
 	focusDepositInput: () => void;
 	focusWithdrawInput: () => void;
+
+	// Balance refetch
+	refetchBalances: (() => void) | null;
+	setRefetchBalances: (refetch: () => void) => void;
 }
 
 const DepositContext = createContext<DepositContextValue | undefined>(undefined);
@@ -47,6 +51,13 @@ export function DepositProvider({ children }: { children: ReactNode }) {
 
 	const depositInputRef = useRef<HTMLInputElement>(null);
 	const withdrawInputRef = useRef<HTMLInputElement>(null);
+
+	// Store refetch callback from useATokenBalances
+	const refetchBalancesRef = useRef<(() => void) | null>(null);
+
+	const setRefetchBalances = useCallback((refetch: () => void) => {
+		refetchBalancesRef.current = refetch;
+	}, []);
 
 	// Action creators (stable references, no dependencies)
 	const startApproving = useCallback((tokenSymbol: string, amount: string) => {
@@ -107,6 +118,10 @@ export function DepositProvider({ children }: { children: ReactNode }) {
 			withdrawInputRef,
 			focusDepositInput,
 			focusWithdrawInput,
+
+			// Balance refetch
+			refetchBalances: refetchBalancesRef.current,
+			setRefetchBalances,
 		}),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[state, focusDepositInput, focusWithdrawInput] // Only 3 deps! Action creators are stable

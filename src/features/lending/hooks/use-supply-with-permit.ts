@@ -8,6 +8,7 @@ import { fetchTokenPermitData } from './use-token-permit-data';
 import { usePermitSignature } from './use-permit-signature';
 import { useSupplyTransaction } from './use-supply-transaction';
 import { useTransactionMonitor } from './use-transaction-monitor';
+import { useDepositContext } from '../context/DepositContext';
 import { getExplorerName } from '@/shared/lib/chain-config';
 
 // Error codes and messages
@@ -72,6 +73,7 @@ export function useSupplyWithPermit(token: TokenConfig) {
 	const { executeSupplyWithPermit, hash, isPending, error: writeError } = useSupplyTransaction();
 	const { isConfirming, isSuccess, receiptError, receiptStatus, manualReceiptError, txError } =
 		useTransactionMonitor(hash);
+	const { refetchBalances } = useDepositContext();
 
 	const [isSigning, setIsSigning] = useState(false);
 	const transactionTokenSymbol = useRef<string | null>(null);
@@ -147,6 +149,13 @@ export function useSupplyWithPermit(token: TokenConfig) {
 			toast.success(`Deposited ${token.symbol} successfully!`, { id: toastId });
 		}
 	}, [shouldShowToasts, hash, isSuccess, token.symbol, toastId]);
+
+	// Effect 2.5: Refetch balances immediately after successful transaction
+	useEffect(() => {
+		if (shouldShowToasts && hash && isSuccess && refetchBalances) {
+			refetchBalances();
+		}
+	}, [shouldShowToasts, hash, isSuccess, refetchBalances]);
 
 	// Effect 3: Handle failure toast
 	useEffect(() => {

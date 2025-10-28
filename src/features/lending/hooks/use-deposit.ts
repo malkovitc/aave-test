@@ -1,15 +1,17 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, type Address } from 'viem';
 import { toast } from 'sonner';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { TokenConfig } from '@/features/tokens/config/tokens';
 import { getChainConfig } from '@/features/tokens/config/chains';
 import { useTransactionToasts } from '@/shared/hooks/use-transaction-toasts';
+import { useDepositContext } from '../context/DepositContext';
 import aavePoolAbi from '../abis/AavePool.json';
 
 export function useDeposit(token: TokenConfig) {
 	const { address: userAddress, chainId } = useAccount();
 	const { writeContract, data: hash, isPending, error } = useWriteContract();
+	const { refetchBalances } = useDepositContext();
 
 	const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
 		hash,
@@ -25,6 +27,13 @@ export function useDeposit(token: TokenConfig) {
 		isSuccess,
 		shouldShowToasts ? error : null
 	);
+
+	// Refetch balances immediately after successful transaction
+	useEffect(() => {
+		if (shouldShowToasts && hash && isSuccess && refetchBalances) {
+			refetchBalances();
+		}
+	}, [shouldShowToasts, hash, isSuccess, refetchBalances]);
 
 	const deposit = async (amount: string) => {
 		if (!userAddress || !chainId) {
